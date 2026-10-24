@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": {
+    "golang-patterns": {
+      "source": "affaan-m/ecc",
+      "sourceType": "github",
+      "skillPath": "skills/golang-patterns/SKILL.md",
+      "computedHash": "8cbfb90287390c9f09d46d5266f0e7f61ba5bd74400c1431b74a334be7bfdd6f"
+    },
+    "golang-testing": {
+      "source": "affaan-m/ecc",
+      "sourceType": "github",
+      "skillPath": "skills/golang-testing/SKILL.md",
+      "computedHash": "12195f2589c4a7b741523bed09db8b64f243c635b4c78297136c6becd7b1e032"
+    }
+  }
+}
