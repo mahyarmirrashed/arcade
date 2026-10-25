@@ -2,8 +2,8 @@
 package tetris
 
 import (
-	"fmt"
 	"math/rand"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,9 +14,6 @@ import (
 	"github.com/mahyarmirrashed/arcade/internal/game"
 	"github.com/mahyarmirrashed/arcade/internal/ui"
 )
-
-// TODO(stage-polish): implement hold-piece mechanic (swap current piece with
-// a stored piece using the 'c' key).
 
 // Compile-time check: Model must satisfy game.Game.
 var _ game.Game = (*Model)(nil)
@@ -39,13 +36,14 @@ func max(a, b int) int {
 
 // keys defines all Tetris keybindings.
 type keyMap struct {
-	left    key.Binding
-	right   key.Binding
+	left      key.Binding
+	right     key.Binding
 	rotateCW  key.Binding
 	rotateCCW key.Binding
 	softDrop  key.Binding
 	hardDrop  key.Binding
-	quit    key.Binding
+	hold      key.Binding
+	quit      key.Binding
 }
 
 var keys = keyMap{
@@ -55,6 +53,7 @@ var keys = keyMap{
 	rotateCCW: key.NewBinding(key.WithKeys("z"), key.WithHelp("z", "rotate CCW")),
 	softDrop:  key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "soft drop")),
 	hardDrop:  key.NewBinding(key.WithKeys(" "), key.WithHelp("space", "hard drop")),
+	hold:      key.NewBinding(key.WithKeys("c"), key.WithHelp("c", "hold")),
 	quit:      key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
 }
 
@@ -72,17 +71,19 @@ func (p piece) shape() Shape {
 
 // Model is the Bubbletea model for Tetris.
 type Model struct {
-	board   board
-	current piece
-	next    PieceType
-	score   int
-	level   int
-	lines   int
-	alive   bool
-	started bool
-	width   int
-	height  int
-	rng     *rand.Rand
+	board     board
+	current   piece
+	next      PieceType
+	hold      *PieceType // nil = no piece held yet
+	canHold   bool       // reset to true each time a piece locks
+	score     int
+	level     int
+	lines     int
+	alive     bool
+	started   bool
+	width     int
+	height    int
+	rng       *rand.Rand
 }
 
 // — game.Game implementation —
@@ -102,12 +103,13 @@ func (m *Model) New(width, height int) tea.Model {
 func newModel(width, height int) *Model {
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	m := &Model{
-		width:  width,
-		height: height,
-		level:  1,
-		alive:  true,
-		rng:    rng,
-		next:   PieceType(rng.Intn(7)),
+		width:   width,
+		height:  height,
+		level:   1,
+		alive:   true,
+		canHold: true,
+		rng:     rng,
+		next:    PieceType(rng.Intn(7)),
 	}
 	m.spawn()
 	return m
@@ -170,6 +172,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.gravity()
 		case key.Matches(msg, keys.hardDrop):
 			m.hardDrop()
+		case key.Matches(msg, keys.hold):
+			m.holdPiece()
 		}
 	}
 
@@ -203,7 +207,39 @@ func (m *Model) lock() {
 		m.lines += cleared
 		m.level = m.lines/10 + 1
 	}
+	m.canHold = true // allow hold again after locking
 	m.spawn()
+}
+
+// holdPiece swaps the current piece with the held piece.
+// If nothing is held yet, the current piece is stashed and the next spawns.
+// Can only be used once per piece — resets when a piece locks.
+func (m *Model) holdPiece() {
+	if !m.canHold {
+		return
+	}
+	m.canHold = false
+
+	if m.hold == nil {
+		// No held piece yet — stash current and spawn next.
+		pt := m.current.pt
+		m.hold = &pt
+		m.spawn()
+	} else {
+		// Swap current with held. Piece always re-enters at rotation 0.
+		pt := m.current.pt
+		m.current = piece{
+			pt:  *m.hold,
+			rot: 0,
+			row: 0,
+			col: boardCols/2 - 2,
+		}
+		m.hold = &pt
+		// If the swap would collide (board too full), game over.
+		if collides(m.board, m.current.shape(), m.current.row, m.current.col) {
+			m.alive = false
+		}
+	}
 }
 
 // tryMove attempts to shift the current piece by (dRow, dCol).
@@ -270,13 +306,22 @@ var pieceColor = [7]lipgloss.Color{
 
 // View implements tea.Model.
 func (m *Model) View() string {
-	board := m.renderBoard()
-	side := m.renderSide()
+	// The board is wrapped in a border (+1 row top, +1 row bottom).
+	// Pad help and side by 1 at the bottom so their content aligns with the
+	// board's inner content rather than the border's bottom edge.
+	pad := lipgloss.NewStyle().PaddingBottom(1)
 
-	game := lipgloss.JoinHorizontal(lipgloss.Top, board, "  ", side)
+	help  := pad.Render(m.renderHelp())
+	board := m.renderBoard()
+	side  := pad.Render(m.renderSide())
+
+	title := ui.Title.Render("tetris")
+	boardWithTitle := lipgloss.JoinVertical(lipgloss.Left, title, "", board)
+
+	game := lipgloss.JoinHorizontal(lipgloss.Bottom, help, "  ", boardWithTitle, "  ", side)
 
 	if !m.alive {
-		overlay := ui.Error.Render("game over") + "\n" +
+		overlay := ui.Error.Render(" game over ") + "\n" +
 			ui.Muted.Render("r  restart  ·  q  quit")
 		game = lipgloss.JoinVertical(lipgloss.Center, game, "", overlay)
 	}
@@ -337,25 +382,50 @@ func (m *Model) renderBoard() string {
 	return borderStyle.Render(sb.String())
 }
 
+func (m *Model) renderHelp() string {
+	line := func(s string) string { return ui.Muted.Render(s) }
+	return lipgloss.JoinVertical(lipgloss.Left,
+		line("←→   move"),
+		line("↑/x  rotate cw"),
+		line("z    rotate ccw"),
+		line("↓    soft drop"),
+		line("spc  hard drop"),
+		line("c    hold"),
+		line("q    quit"),
+	)
+}
+
 func (m *Model) renderSide() string {
 	nextLabel := ui.Subtitle.Render("next")
 	nextPiece := m.renderMiniPiece(m.next)
 
-	stats := fmt.Sprintf("%s\n%d\n\n%s\n%d\n\n%s\n%d",
-		ui.Subtitle.Render("score"), m.score,
-		ui.Subtitle.Render("level"), m.level,
-		ui.Subtitle.Render("lines"), m.lines,
-	)
+	holdLabel := ui.Subtitle.Render("hold")
+	var holdPiece string
+	if m.hold != nil {
+		holdPiece = m.renderMiniPiece(*m.hold)
+	} else {
+		holdPiece = ui.Muted.Render("─")
+	}
 
-	help := ui.Muted.Render("←→  move\n↑/x  rotate CW\nz    rotate CCW\n↓   soft drop\nspc  hard drop\nq    quit")
+	stats := lipgloss.JoinVertical(lipgloss.Left,
+		ui.Subtitle.Render("score"),
+		strconv.Itoa(m.score),
+		"",
+		ui.Subtitle.Render("level"),
+		strconv.Itoa(m.level),
+		"",
+		ui.Subtitle.Render("lines"),
+		strconv.Itoa(m.lines),
+	)
 
 	return lipgloss.JoinVertical(lipgloss.Left,
 		nextLabel,
 		nextPiece,
 		"",
-		stats,
+		holdLabel,
+		holdPiece,
 		"",
-		help,
+		stats,
 	)
 }
 

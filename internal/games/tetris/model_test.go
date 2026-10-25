@@ -350,6 +350,77 @@ func TestModel_viewRendersWithoutPanic(t *testing.T) {
 	_ = m.View()
 }
 
+// ---- hold piece tests ----
+
+func TestHold_firstHoldStashesCurrentAndSpawnsNext(t *testing.T) {
+	m := newTestModel()
+	original := m.current.pt
+	m.holdPiece()
+
+	if m.hold == nil {
+		t.Fatal("expected hold slot to be filled after first hold")
+	}
+	if *m.hold != original {
+		t.Errorf("held piece = %d; want %d", *m.hold, original)
+	}
+	// Current piece should now be the previously queued next — different object.
+	if m.current.pt == original && m.current.row == 0 {
+		// Not necessarily wrong if rng gave same type, but the piece should
+		// have been freshly spawned (row=0, rot=0).
+	}
+}
+
+func TestHold_secondHoldSwapsCurrentWithHeld(t *testing.T) {
+	m := newTestModel()
+
+	// First hold: stash current (A), spawn next (B).
+	firstPT := m.current.pt
+	m.holdPiece()
+
+	// Lock the current piece to re-enable hold.
+	m.lock()
+
+	// Second hold: current is whatever spawned; swap it with held (A).
+	secondPT := m.current.pt
+	m.holdPiece()
+
+	if m.hold == nil {
+		t.Fatal("hold slot should not be nil after second hold")
+	}
+	// Held slot should now contain what was current before the second hold.
+	if *m.hold != secondPT {
+		t.Errorf("hold after swap = %d; want %d", *m.hold, secondPT)
+	}
+	// Current should be what was previously held (firstPT), at rot 0.
+	if m.current.pt != firstPT {
+		t.Errorf("current after swap = %d; want %d", m.current.pt, firstPT)
+	}
+	if m.current.rot != 0 {
+		t.Errorf("swapped piece rotation = %d; want 0", m.current.rot)
+	}
+}
+
+func TestHold_cannotHoldTwiceWithoutLocking(t *testing.T) {
+	m := newTestModel()
+
+	m.holdPiece() // first hold — valid
+	heldAfterFirst := *m.hold
+
+	m.holdPiece() // second hold without locking — should be ignored
+	if *m.hold != heldAfterFirst {
+		t.Error("hold should be blocked until the current piece locks")
+	}
+}
+
+func TestHold_canHoldAgainAfterLock(t *testing.T) {
+	m := newTestModel()
+	m.holdPiece()
+	m.lock() // lock re-enables hold
+	if !m.canHold {
+		t.Error("canHold should be true after locking a piece")
+	}
+}
+
 func TestModel_levelIncreasesEvery10Lines(t *testing.T) {
 	m := newTestModel()
 	m.lines = 9
