@@ -25,6 +25,7 @@ import (
 	_2048 "github.com/mahyarmirrashed/arcade/internal/games/2048"
 	"github.com/mahyarmirrashed/arcade/internal/games/snake"
 	"github.com/mahyarmirrashed/arcade/internal/games/tetris"
+	"github.com/mahyarmirrashed/arcade/internal/games/wordle"
 	"github.com/mahyarmirrashed/arcade/internal/root"
 	"github.com/mahyarmirrashed/arcade/internal/server"
 	"github.com/mahyarmirrashed/arcade/internal/ui"
@@ -35,10 +36,12 @@ func main() {
 	// deliberate choice made with --addr (e.g. --addr :2222).
 	cfg := config.Parse("127.0.0.1:2222", ".ssh/id_ed25519")
 
+	// Games are listed alphabetically in the lobby.
 	reg := game.NewRegistry(
-		&tetris.Model{},
-		&snake.Model{},
 		&_2048.Model{},
+		&snake.Model{},
+		&tetris.Model{},
+		&wordle.Model{},
 	)
 
 	opts := []ssh.Option{
