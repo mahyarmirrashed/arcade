@@ -1,6 +1,7 @@
 package wordle
 
 import (
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -266,4 +267,28 @@ func keyMsgSpecial(s string) tea.KeyMsg {
 		return tea.KeyMsg{Type: tea.KeyBackspace}
 	}
 	return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(s)}
+}
+
+func TestModel_tooSmallTerminalShowsNoticeAndIgnoresTyping(t *testing.T) {
+	m := newTestModel()
+
+	m.Update(tea.WindowSizeMsg{Width: 20, Height: 8})
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
+
+	if v := m.View(); !strings.Contains(v, "terminal too small") {
+		t.Errorf("20x8 view does not say the terminal is too small:\n%s", v)
+	}
+	if m.input != "" {
+		t.Errorf("input = %q; want typing ignored while the board can't be seen", m.input)
+	}
+}
+
+func TestModel_growingBackShowsBoard(t *testing.T) {
+	m := newTestModel()
+	m.Update(tea.WindowSizeMsg{Width: 20, Height: 8})
+	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+
+	if v := m.View(); strings.Contains(v, "terminal too small") || !strings.Contains(v, "wordle") {
+		t.Errorf("80x24 view should show the game again:\n%s", v)
+	}
 }
