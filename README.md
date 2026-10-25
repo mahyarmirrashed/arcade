@@ -40,7 +40,7 @@ hold the key. Without a key you can still play, unranked.
 |------|-----------|
 | 2048, Snake, Tetris | best score |
 | Wordle | longest winning streak, then fewest guesses |
-| Minesweeper | fastest win |
+| Minesweeper, Solitaire | fastest win, timed from your first move |
 
 The lobby shows the top 10 for the highlighted game, and the game-over screen
 shows where your result placed. Every Snake game uses the same 28×20 board so
