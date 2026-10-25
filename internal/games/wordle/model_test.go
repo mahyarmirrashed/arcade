@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/mahyarmirrashed/arcade/internal/ui"
 )
 
 // ---- board.go tests ----
@@ -112,7 +114,7 @@ func TestIsValid_unknownWord(t *testing.T) {
 // ---- model tests ----
 
 func newTestModel() *Model {
-	m := newModel(80, 24)
+	m := newModel(80, 24, ui.Styles{})
 	m.answer = "crane" // deterministic answer for tests
 	return m
 }

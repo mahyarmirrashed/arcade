@@ -44,6 +44,7 @@ type Model struct {
 	width   int
 	height  int
 	rng     *rand.Rand
+	styles  ui.Styles
 }
 
 // - game.Game implementation -
@@ -51,11 +52,11 @@ type Model struct {
 func (m *Model) Name() string        { return "Wordle" }
 func (m *Model) Description() string { return "guess the five-letter word" }
 
-func (m *Model) New(width, height int) tea.Model {
-	return newModel(width, height)
+func (m *Model) New(width, height int, styles ui.Styles) tea.Model {
+	return newModel(width, height, styles)
 }
 
-func newModel(width, height int) *Model {
+func newModel(width, height int, styles ui.Styles) *Model {
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	return &Model{
 		answer: randomAnswer(rng),
@@ -63,6 +64,7 @@ func newModel(width, height int) *Model {
 		height: height,
 		rng:    rng,
 		state:  statePlaying,
+		styles: styles,
 	}
 }
 
@@ -89,7 +91,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 	// r restarts only when the game is over.
 	if msg.String() == "r" && m.state != statePlaying {
-		fresh := newModel(m.width, m.height)
+		fresh := newModel(m.width, m.height, m.styles)
 		return func() tea.Msg { return replaceMsg{fresh} }
 	}
 
@@ -107,7 +109,7 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 	case "enter":
 		m.submitGuess()
 	default:
-		// Accept a–z only.
+		// Accept a-z only.
 		if len(msg.String()) == 1 {
 			ch := rune(msg.String()[0])
 			if ch >= 'a' && ch <= 'z' && len(m.input) < wordLen {
@@ -154,8 +156,8 @@ func (m *Model) submitGuess() {
 // - View -
 
 // hintStyle returns the Lip Gloss style for a letter tile given its hint.
-func hintStyle(h hint) lipgloss.Style {
-	base := lipgloss.NewStyle().
+func (m *Model) hintStyle(h hint) lipgloss.Style {
+	base := m.styles.NewStyle().
 		Width(4).
 		Align(lipgloss.Center).
 		Bold(true)
@@ -169,25 +171,29 @@ func hintStyle(h hint) lipgloss.Style {
 	}
 }
 
-var emptyStyle = lipgloss.NewStyle().
-	Width(4).
-	Align(lipgloss.Center).
-	Foreground(ui.ColorMuted)
+func (m *Model) emptyStyle() lipgloss.Style {
+	return m.styles.NewStyle().
+		Width(4).
+		Align(lipgloss.Center).
+		Foreground(ui.ColorMuted)
+}
 
-var activeStyle = lipgloss.NewStyle().
-	Width(4).
-	Align(lipgloss.Center).
-	Foreground(ui.ColorText).
-	Bold(true)
+func (m *Model) activeStyle() lipgloss.Style {
+	return m.styles.NewStyle().
+		Width(4).
+		Align(lipgloss.Center).
+		Foreground(ui.ColorText).
+		Bold(true)
+}
 
 func (m *Model) View() string {
 	help := m.renderHelp()
 	board := m.renderBoard()
 
-	title := ui.Title.Render("wordle")
+	title := m.styles.Title.Render("wordle")
 	boardWithTitle := lipgloss.JoinVertical(lipgloss.Left, title, "", board)
 
-	pad := lipgloss.NewStyle().PaddingBottom(1)
+	pad := m.styles.NewStyle().PaddingBottom(1)
 	layout := lipgloss.JoinHorizontal(lipgloss.Bottom,
 		pad.Render(help), "  ", boardWithTitle,
 	)
@@ -209,22 +215,22 @@ func (m *Model) renderBoard() string {
 			// Submitted row - show hints.
 			for c := 0; c < wordLen; c++ {
 				ch := strings.ToUpper(string(m.rows[r].letters[c]))
-				cells[c] = hintStyle(m.rows[r].hints[c]).Render(ch)
+				cells[c] = m.hintStyle(m.rows[r].hints[c]).Render(ch)
 			}
 		case r == m.current && m.state == statePlaying:
 			// Active row - show typed letters.
 			for c := 0; c < wordLen; c++ {
 				if c < len(m.input) {
 					ch := strings.ToUpper(string(m.input[c]))
-					cells[c] = activeStyle.Render(ch)
+					cells[c] = m.activeStyle().Render(ch)
 				} else {
-					cells[c] = emptyStyle.Render("·")
+					cells[c] = m.emptyStyle().Render("·")
 				}
 			}
 		default:
 			// Future row - empty.
 			for c := 0; c < wordLen; c++ {
-				cells[c] = emptyStyle.Render("·")
+				cells[c] = m.emptyStyle().Render("·")
 			}
 		}
 
@@ -242,9 +248,9 @@ func (m *Model) renderBoard() string {
 	var overlay string
 	switch m.state {
 	case stateWon:
-		overlay = ui.Error.Render(" you got it! ")
+		overlay = m.styles.Error.Render(" you got it! ")
 	case stateLost:
-		overlay = ui.Error.Render(" " + strings.ToUpper(m.answer) + " ")
+		overlay = m.styles.Error.Render(" " + strings.ToUpper(m.answer) + " ")
 	}
 	if overlay != "" {
 		w := lipgloss.Width(inner)
@@ -258,14 +264,14 @@ func (m *Model) renderBoard() string {
 
 	notice := ""
 	if m.notice != "" {
-		notice = "\n" + ui.Muted.Render(m.notice)
+		notice = "\n" + m.styles.Muted.Render(m.notice)
 	}
 
-	return ui.Border.Render(inner) + notice
+	return m.styles.Border.Render(inner) + notice
 }
 
 func (m *Model) renderHelp() string {
-	line := func(s string) string { return ui.Muted.Render(s) }
+	line := func(s string) string { return m.styles.Muted.Render(s) }
 	return lipgloss.JoinVertical(lipgloss.Left,
 		line("a-z  type"),
 		line("⌫    delete"),
@@ -273,8 +279,8 @@ func (m *Model) renderHelp() string {
 		line("r    restart"),
 		line("q    quit"),
 		"",
-		ui.Muted.Render("green  = correct"),
-		ui.Muted.Render("yellow = wrong place"),
-		ui.Muted.Render("grey   = absent"),
+		m.styles.Muted.Render("green  = correct"),
+		m.styles.Muted.Render("yellow = wrong place"),
+		m.styles.Muted.Render("grey   = absent"),
 	)
 }

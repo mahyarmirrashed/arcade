@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/mahyarmirrashed/arcade/internal/ui"
 )
 
 // ---- board.go tests ----
@@ -255,7 +257,7 @@ func TestHasMovesLeft_hasEmpty(t *testing.T) {
 // ---- model.go tests ----
 
 func newTestModel() *Model {
-	return newModel(80, 24)
+	return newModel(80, 24, ui.Styles{})
 }
 
 func TestModel_initialState(t *testing.T) {

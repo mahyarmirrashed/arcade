@@ -51,6 +51,7 @@ type Model struct {
 	width  int
 	height int
 	rng    *rand.Rand
+	styles ui.Styles
 }
 
 // - game.Game implementation -
@@ -58,11 +59,11 @@ type Model struct {
 func (m *Model) Name() string        { return "2048" }
 func (m *Model) Description() string { return "slide tiles, reach 2048" }
 
-func (m *Model) New(width, height int) tea.Model {
-	return newModel(width, height)
+func (m *Model) New(width, height int, styles ui.Styles) tea.Model {
+	return newModel(width, height, styles)
 }
 
-func newModel(width, height int) *Model {
+func newModel(width, height int, styles ui.Styles) *Model {
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	var g grid
 	g, _ = spawn(g, rng)
@@ -73,6 +74,7 @@ func newModel(width, height int) *Model {
 		height: height,
 		rng:    rng,
 		state:  statePlaying,
+		styles: styles,
 	}
 }
 
@@ -84,7 +86,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if km, ok := msg.(tea.KeyMsg); ok {
 		// r restarts from any state.
 		if km.String() == "r" {
-			fresh := newModel(m.width, m.height)
+			fresh := newModel(m.width, m.height, m.styles)
 			fresh.best = m.best
 			return fresh, nil
 		}
@@ -148,8 +150,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // tileStyle returns a Lip Gloss style for the given tile value.
 // Higher tiles get brighter colours from ui.Spectrum.
-func tileStyle(value int) lipgloss.Style {
-	base := lipgloss.NewStyle().
+func (m *Model) tileStyle(value int) lipgloss.Style {
+	base := m.styles.NewStyle().
 		Width(6).
 		Align(lipgloss.Center).
 		Bold(true)
@@ -158,7 +160,7 @@ func tileStyle(value int) lipgloss.Style {
 		return base.Foreground(ui.ColorMuted)
 	}
 
-	// Map powers of 2 (2→0 … 2048→10) to spectrum colours.
+	// Map powers of 2 (2=0, 4=1, ... 2048=10) to spectrum colours.
 	idx := 0
 	v := value
 	for v > 2 {
@@ -175,10 +177,10 @@ func (m *Model) View() string {
 	help := m.renderHelp()
 	board := m.renderBoard()
 
-	title := ui.Title.Render("2048")
+	title := m.styles.Title.Render("2048")
 	boardWithTitle := lipgloss.JoinVertical(lipgloss.Left, title, "", board)
 
-	pad := lipgloss.NewStyle().PaddingBottom(1)
+	pad := m.styles.NewStyle().PaddingBottom(1)
 	layout := lipgloss.JoinHorizontal(lipgloss.Bottom,
 		pad.Render(help), "  ", boardWithTitle,
 	)
@@ -195,7 +197,7 @@ func (m *Model) renderBoard() string {
 		var cells [size]string
 		for c := 0; c < size; c++ {
 			v := m.g[r][c]
-			s := tileStyle(v)
+			s := m.tileStyle(v)
 			if v == 0 {
 				cells[c] = s.Render("·")
 			} else {
@@ -223,24 +225,24 @@ func (m *Model) renderBoard() string {
 		h := lipgloss.Height(inner)
 		inner = lipgloss.Place(w, h,
 			lipgloss.Center, lipgloss.Center,
-			ui.Error.Render(msg),
+			m.styles.Error.Render(msg),
 			lipgloss.WithWhitespaceChars(" "),
 		)
 	}
 
 	stats := lipgloss.JoinHorizontal(lipgloss.Top,
 		lipgloss.JoinVertical(lipgloss.Left,
-			ui.Subtitle.Render("score"),
+			m.styles.Subtitle.Render("score"),
 			strconv.Itoa(m.score),
 		),
 		"   ",
 		lipgloss.JoinVertical(lipgloss.Left,
-			ui.Subtitle.Render("best"),
+			m.styles.Subtitle.Render("best"),
 			strconv.Itoa(m.best),
 		),
 	)
 
-	return ui.Border.Render(
+	return m.styles.Border.Render(
 		lipgloss.JoinVertical(lipgloss.Left,
 			stats,
 			"",
@@ -250,7 +252,7 @@ func (m *Model) renderBoard() string {
 }
 
 func (m *Model) renderHelp() string {
-	line := func(s string) string { return ui.Muted.Render(s) }
+	line := func(s string) string { return m.styles.Muted.Render(s) }
 	return lipgloss.JoinVertical(lipgloss.Left,
 		line("↑/k  up"),
 		line("↓/j  down"),
