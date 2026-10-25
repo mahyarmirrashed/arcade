@@ -43,7 +43,7 @@ func checkGolden(t *testing.T, name, got string) {
 // midGame returns a 14x12 board with a bent four-cell snake and food in view,
 // in the smallest terminal that fits it.
 func midGame() *Model {
-	m := newModel(52, 16, testRand())
+	m := newModel(52, 16, testRand(), testStyles())
 	m.board = heading(14, 12, right, point{6, 5}, point{5, 5}, point{4, 5}, point{4, 6})
 	m.board.food = point{10, 3}
 	m.board.score = 3
@@ -55,7 +55,7 @@ func TestView_playing(t *testing.T) {
 }
 
 func TestView_tooSmall(t *testing.T) {
-	checkGolden(t, "too_small", newModel(30, 10, testRand()).View())
+	checkGolden(t, "too_small", newModel(30, 10, testRand(), testStyles()).View())
 }
 
 func TestView_gameOver(t *testing.T) {
@@ -71,11 +71,11 @@ func TestView_won(t *testing.T) {
 }
 
 func TestView_standardTerminal(t *testing.T) {
-	checkGolden(t, "wide", newModel(80, 24, testRand()).View())
+	checkGolden(t, "wide", newModel(80, 24, testRand(), testStyles()).View())
 }
 
 func TestView_smallestBoard(t *testing.T) {
-	checkGolden(t, "smallest", newModel(44, 14, testRand()).View())
+	checkGolden(t, "smallest", newModel(44, 14, testRand(), testStyles()).View())
 }
 
 func TestView_paused(t *testing.T) {
@@ -87,7 +87,7 @@ func TestView_paused(t *testing.T) {
 func TestRenderSide_fitsReservedWidth(t *testing.T) {
 	// gridSize reserves sideW columns; the largest possible score and length
 	// on a full 40x20 board must still fit.
-	m := newModel(200, 60, testRand())
+	m := newModel(200, 60, testRand(), testStyles())
 	m.board.score = maxCols*maxRows - 3
 	m.board.body = make([]point, maxCols*maxRows)
 

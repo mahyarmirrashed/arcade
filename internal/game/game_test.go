@@ -6,6 +6,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/mahyarmirrashed/arcade/internal/game"
+	"github.com/mahyarmirrashed/arcade/internal/ui"
 )
 
 // stubGame is a minimal Game implementation used only in tests.
@@ -16,7 +17,7 @@ type stubGame struct {
 
 func (s stubGame) Name() string                      { return s.name }
 func (s stubGame) Description() string               { return s.desc }
-func (s stubGame) New(_, _ int) tea.Model            { return nil }
+func (s stubGame) New(_, _ int, _ ui.Styles) tea.Model            { return nil }
 
 func TestRegistry_All_returnsInInsertionOrder(t *testing.T) {
 	a := stubGame{name: "Alpha"}

@@ -86,6 +86,7 @@ type Model struct {
 	width     int
 	height    int
 	rng       *rand.Rand
+	styles    ui.Styles
 }
 
 // — game.Game implementation —
@@ -97,12 +98,12 @@ func (m *Model) Name() string { return "Tetris" }
 func (m *Model) Description() string { return "clear lines, survive gravity" }
 
 // New implements game.Game — returns a fresh model for a new session.
-func (m *Model) New(width, height int) tea.Model {
-	return newModel(width, height)
+func (m *Model) New(width, height int, styles ui.Styles) tea.Model {
+	return newModel(width, height, styles)
 }
 
 // newModel constructs a ready-to-play Model.
-func newModel(width, height int) *Model {
+func newModel(width, height int, styles ui.Styles) *Model {
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	m := &Model{
 		width:   width,
@@ -111,6 +112,7 @@ func newModel(width, height int) *Model {
 		alive:   true,
 		canHold: true,
 		rng:     rng,
+		styles:  styles,
 		next:    PieceType(rng.Intn(7)),
 	}
 	m.spawn()
@@ -144,7 +146,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if km, ok := msg.(tea.KeyMsg); ok {
 			switch km.String() {
 			case "r":
-				fresh := newModel(m.width, m.height)
+				fresh := newModel(m.width, m.height, m.styles)
 				return fresh, fresh.Init()
 			}
 		}

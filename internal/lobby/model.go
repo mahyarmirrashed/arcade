@@ -81,10 +81,12 @@ type Model struct {
 	games  []game.Game
 	width  int
 	height int
+	styles ui.Styles
 }
 
-// New returns an initialised lobby Model sized to the given terminal dimensions.
-func New(width, height int, reg *game.Registry) Model {
+// New returns an initialised lobby Model sized to the given terminal
+// dimensions, rendering with the session's styles.
+func New(width, height int, reg *game.Registry, styles ui.Styles) Model {
 	games := reg.All()
 	items := make([]list.Item, len(games))
 	for i, g := range games {
@@ -103,7 +105,7 @@ func New(width, height int, reg *game.Registry) Model {
 	l.KeyMap.PrevPage.SetKeys("pgup")
 	l.KeyMap.NextPage.SetKeys("pgdown")
 
-	return Model{list: l, games: games, width: width, height: height}
+	return Model{list: l, games: games, width: width, height: height, styles: styles}
 }
 
 // Index returns the currently selected list index (used in tests).

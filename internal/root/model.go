@@ -7,6 +7,7 @@ import (
 
 	"github.com/mahyarmirrashed/arcade/internal/game"
 	"github.com/mahyarmirrashed/arcade/internal/lobby"
+	"github.com/mahyarmirrashed/arcade/internal/ui"
 )
 
 type state int
@@ -24,15 +25,18 @@ type Model struct {
 	height int
 	lobby  lobby.Model
 	active tea.Model // non-nil only while statePlaying
+	styles ui.Styles
 }
 
-// New returns an initialised root Model.
-func New(width, height int, reg *game.Registry) Model {
+// New returns an initialised root Model. styles render for the session's
+// terminal and are handed to the lobby and to every game started from it.
+func New(width, height int, reg *game.Registry, styles ui.Styles) Model {
 	return Model{
 		state:  stateLobby,
 		width:  width,
 		height: height,
-		lobby:  lobby.New(width, height, reg),
+		lobby:  lobby.New(width, height, reg, styles),
+		styles: styles,
 	}
 }
 
@@ -69,7 +73,7 @@ func (m Model) updateLobby(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Intercept SelectMsg before forwarding to lobby so we can transition.
 	if sel, ok := msg.(lobby.SelectMsg); ok {
-		g := sel.Game.New(m.width, m.height)
+		g := sel.Game.New(m.width, m.height, m.styles)
 		m.active = g
 		m.state = statePlaying
 		return m, g.Init()

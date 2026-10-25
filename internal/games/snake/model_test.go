@@ -40,9 +40,9 @@ func TestGridSize(t *testing.T) {
 
 func TestNew_sizesBoardToTerminal(t *testing.T) {
 	var g Model
-	m, ok := g.New(80, 24).(*Model)
+	m, ok := g.New(80, 24, testStyles()).(*Model)
 	if !ok {
-		t.Fatalf("New returned %T; want *Model", g.New(80, 24))
+		t.Fatalf("New returned %T; want *Model", g.New(80, 24, testStyles()))
 	}
 
 	if m.tooSmall {
@@ -57,7 +57,7 @@ func TestNew_sizesBoardToTerminal(t *testing.T) {
 }
 
 func TestNew_tooSmallTerminalDoesNotTick(t *testing.T) {
-	m := newModel(20, 10, testRand())
+	m := newModel(20, 10, testRand(), testStyles())
 
 	if !m.tooSmall {
 		t.Error("tooSmall = false; want true")
@@ -68,7 +68,7 @@ func TestNew_tooSmallTerminalDoesNotTick(t *testing.T) {
 }
 
 func TestUpdate_tickAdvancesSnake(t *testing.T) {
-	m := newModel(80, 24, testRand())
+	m := newModel(80, 24, testRand(), testStyles())
 	head := m.board.body[0]
 
 	_, cmd := m.Update(tickMsg{owner: m, gen: m.gen})
@@ -82,7 +82,7 @@ func TestUpdate_tickAdvancesSnake(t *testing.T) {
 }
 
 func TestUpdate_staleTickIgnored(t *testing.T) {
-	m := newModel(80, 24, testRand())
+	m := newModel(80, 24, testRand(), testStyles())
 	head := m.board.body[0]
 
 	_, cmd := m.Update(tickMsg{owner: m, gen: m.gen - 1})
@@ -96,7 +96,7 @@ func TestUpdate_staleTickIgnored(t *testing.T) {
 }
 
 func TestUpdate_deathStopsTicking(t *testing.T) {
-	m := newModel(80, 24, testRand())
+	m := newModel(80, 24, testRand(), testStyles())
 	m.board = heading(m.board.cols, m.board.rows, right, point{m.board.cols - 1, 0})
 
 	_, cmd := m.Update(tickMsg{owner: m, gen: m.gen})
@@ -127,7 +127,7 @@ func TestUpdate_keysSteer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := newModel(80, 24, testRand())
+			m := newModel(80, 24, testRand(), testStyles())
 			m.board.dir, m.board.next = tt.start, tt.start
 
 			m.Update(tt.key)
@@ -140,7 +140,7 @@ func TestUpdate_keysSteer(t *testing.T) {
 }
 
 func TestUpdate_resizeResets(t *testing.T) {
-	m := newModel(80, 24, testRand())
+	m := newModel(80, 24, testRand(), testStyles())
 	m.board.score = 5
 	gen := m.gen
 
@@ -162,7 +162,7 @@ func TestUpdate_resizeResets(t *testing.T) {
 
 func TestUpdate_sameSizeKeepsGame(t *testing.T) {
 	// Wish sends the starting size again once the session opens.
-	m := newModel(80, 24, testRand())
+	m := newModel(80, 24, testRand(), testStyles())
 	m.board.score = 5
 
 	_, cmd := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
@@ -176,7 +176,7 @@ func TestUpdate_sameSizeKeepsGame(t *testing.T) {
 }
 
 func TestUpdate_resizeTooSmallStopsTicking(t *testing.T) {
-	m := newModel(80, 24, testRand())
+	m := newModel(80, 24, testRand(), testStyles())
 
 	_, cmd := m.Update(tea.WindowSizeMsg{Width: 20, Height: 10})
 
@@ -192,7 +192,7 @@ func TestUpdate_quitKeysLeftToRoot(t *testing.T) {
 	// The root model (or cmd/snake's wrapper) owns q and ctrl+c.
 	for _, key := range []tea.KeyMsg{runeKey("q"), {Type: tea.KeyCtrlC}} {
 		t.Run(key.String(), func(t *testing.T) {
-			m := newModel(80, 24, testRand())
+			m := newModel(80, 24, testRand(), testStyles())
 
 			_, cmd := m.Update(key)
 
@@ -213,7 +213,7 @@ func TestUpdate_restart(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := newModel(80, 24, testRand())
+			m := newModel(80, 24, testRand(), testStyles())
 			m.board.score = 7
 			tt.setup(&m.board)
 			gen := m.gen
@@ -235,7 +235,7 @@ func TestUpdate_restart(t *testing.T) {
 }
 
 func TestUpdate_restartIgnoredMidGame(t *testing.T) {
-	m := newModel(80, 24, testRand())
+	m := newModel(80, 24, testRand(), testStyles())
 	m.board.score = 7
 
 	_, cmd := m.Update(runeKey("r"))
@@ -251,7 +251,7 @@ func TestUpdate_restartIgnoredMidGame(t *testing.T) {
 func TestUpdate_pause(t *testing.T) {
 	for _, key := range []tea.KeyMsg{runeKey("p"), {Type: tea.KeySpace}} {
 		t.Run(key.String(), func(t *testing.T) {
-			m := newModel(80, 24, testRand())
+			m := newModel(80, 24, testRand(), testStyles())
 			head := m.board.body[0]
 			gen := m.gen
 
@@ -273,7 +273,7 @@ func TestUpdate_pause(t *testing.T) {
 }
 
 func TestUpdate_resume(t *testing.T) {
-	m := newModel(80, 24, testRand())
+	m := newModel(80, 24, testRand(), testStyles())
 	m.Update(runeKey("p"))
 	gen := m.gen
 
@@ -291,7 +291,7 @@ func TestUpdate_resume(t *testing.T) {
 }
 
 func TestUpdate_pausedIgnoresTurns(t *testing.T) {
-	m := newModel(80, 24, testRand())
+	m := newModel(80, 24, testRand(), testStyles())
 	m.Update(runeKey("p"))
 
 	m.Update(tea.KeyMsg{Type: tea.KeyUp})
@@ -302,7 +302,7 @@ func TestUpdate_pausedIgnoresTurns(t *testing.T) {
 }
 
 func TestUpdate_pauseIgnoredWhenGameOver(t *testing.T) {
-	m := newModel(80, 24, testRand())
+	m := newModel(80, 24, testRand(), testStyles())
 	m.board.alive = false
 
 	m.Update(runeKey("p"))
@@ -313,7 +313,7 @@ func TestUpdate_pauseIgnoredWhenGameOver(t *testing.T) {
 }
 
 func TestUpdate_resizeUnpauses(t *testing.T) {
-	m := newModel(80, 24, testRand())
+	m := newModel(80, 24, testRand(), testStyles())
 	m.Update(runeKey("p"))
 
 	_, cmd := m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
@@ -330,8 +330,8 @@ func TestUpdate_tickFromEarlierGameIgnored(t *testing.T) {
 	// In the arcade, leaving Snake and starting it again creates a new Model
 	// while the old one's tick may still be in flight. Both start at the same
 	// generation, so only the owner tells them apart.
-	old := newModel(80, 24, testRand())
-	m := newModel(80, 24, testRand())
+	old := newModel(80, 24, testRand(), testStyles())
+	m := newModel(80, 24, testRand(), testStyles())
 	head := m.board.body[0]
 
 	_, cmd := m.Update(tickMsg{owner: old, gen: old.gen})

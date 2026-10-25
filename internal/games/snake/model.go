@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/mahyarmirrashed/arcade/internal/game"
+	"github.com/mahyarmirrashed/arcade/internal/ui"
 )
 
 // Compile-time check: Model must satisfy game.Game.
@@ -30,11 +31,13 @@ type Model struct {
 	gen      int
 	tooSmall bool
 	paused   bool
+	styles   ui.Styles
 }
 
-// newModel returns a game sized to the terminal, drawing food positions from rng.
-func newModel(width, height int, rng *rand.Rand) *Model {
-	m := &Model{rng: rng}
+// newModel returns a game sized to the terminal, drawing food positions from
+// rng and rendering with styles.
+func newModel(width, height int, rng *rand.Rand, styles ui.Styles) *Model {
+	m := &Model{rng: rng, styles: styles}
 	m.resize(width, height)
 	return m
 }
@@ -80,8 +83,8 @@ func (m *Model) Name() string { return "Snake" }
 func (m *Model) Description() string { return "eat, grow, don't bite yourself" }
 
 // New implements game.Game — returns a fresh model for a new session.
-func (m *Model) New(width, height int) tea.Model {
-	return newModel(width, height, rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64())))
+func (m *Model) New(width, height int, styles ui.Styles) tea.Model {
+	return newModel(width, height, rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64())), styles)
 }
 
 // — tea.Model implementation —

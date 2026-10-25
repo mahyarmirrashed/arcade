@@ -1,21 +1,25 @@
 package root_test
 
 import (
+	"io"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 
 	"github.com/mahyarmirrashed/arcade/internal/game"
 	"github.com/mahyarmirrashed/arcade/internal/lobby"
 	"github.com/mahyarmirrashed/arcade/internal/root"
+	"github.com/mahyarmirrashed/arcade/internal/ui"
 )
 
 // stubGame is a minimal game.Game for tests.
 type stubGame struct{ name string }
 
-func (s stubGame) Name() string           { return s.name }
-func (s stubGame) Description() string    { return "" }
-func (s stubGame) New(_, _ int) tea.Model { return stubModel{} }
+func (s stubGame) Name() string                        { return s.name }
+func (s stubGame) Description() string                 { return "" }
+func (s stubGame) New(_, _ int, _ ui.Styles) tea.Model { return stubModel{} }
 
 // stubModel is the model returned by stubGame.
 type stubModel struct{}
@@ -26,7 +30,14 @@ func (stubModel) View() string                        { return "stub" }
 
 func newTestRoot() root.Model {
 	reg := game.NewRegistry(stubGame{name: "Stub"})
-	return root.New(80, 24, reg)
+	return root.New(80, 24, reg, testStyles())
+}
+
+// testStyles renders without colour, as a terminal with no colour support would.
+func testStyles() ui.Styles {
+	r := lipgloss.NewRenderer(io.Discard)
+	r.SetColorProfile(termenv.Ascii)
+	return ui.NewStyles(r)
 }
 
 func update(m tea.Model, msg tea.Msg) root.Model {

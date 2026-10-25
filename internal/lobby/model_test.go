@@ -1,13 +1,17 @@
 package lobby_test
 
 import (
+	"io"
 	"testing"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 
 	"github.com/mahyarmirrashed/arcade/internal/game"
 	"github.com/mahyarmirrashed/arcade/internal/lobby"
+	"github.com/mahyarmirrashed/arcade/internal/ui"
 )
 
 // stubGame satisfies game.Game for test purposes.
@@ -15,11 +19,18 @@ type stubGame struct{ name string }
 
 func (s stubGame) Name() string                   { return s.name }
 func (s stubGame) Description() string            { return s.name + " desc" }
-func (s stubGame) New(_, _ int) tea.Model         { return nil }
+func (s stubGame) New(_, _ int, _ ui.Styles) tea.Model         { return nil }
 
 func newTestModel(games ...game.Game) lobby.Model {
 	reg := game.NewRegistry(games...)
-	return lobby.New(80, 24, reg)
+	return lobby.New(80, 24, reg, testStyles())
+}
+
+// testStyles renders without colour, as a terminal with no colour support would.
+func testStyles() ui.Styles {
+	r := lipgloss.NewRenderer(io.Discard)
+	r.SetColorProfile(termenv.Ascii)
+	return ui.NewStyles(r)
 }
 
 func update(m tea.Model, msg tea.Msg) tea.Model {

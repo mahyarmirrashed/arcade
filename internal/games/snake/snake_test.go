@@ -1,15 +1,28 @@
 package snake
 
 import (
+	"io"
 	"math/rand/v2"
 	"slices"
 	"testing"
 	"time"
+
+	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
+
+	"github.com/mahyarmirrashed/arcade/internal/ui"
 )
 
 // testRand returns a deterministic random source so tests are repeatable.
 func testRand() *rand.Rand {
 	return rand.New(rand.NewPCG(1, 2))
+}
+
+// testStyles renders without colour, as a terminal with no colour support would.
+func testStyles() ui.Styles {
+	r := lipgloss.NewRenderer(io.Discard)
+	r.SetColorProfile(termenv.Ascii)
+	return ui.NewStyles(r)
 }
 
 // heading builds a living board whose snake is already moving in dir.

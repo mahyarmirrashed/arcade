@@ -1,7 +1,13 @@
 package tetris
 
 import (
+	"io"
 	"testing"
+
+	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
+
+	"github.com/mahyarmirrashed/arcade/internal/ui"
 )
 
 // ---- piece.go tests ----
@@ -201,7 +207,14 @@ func TestScore_table(t *testing.T) {
 // ---- model.go tests ----
 
 func newTestModel() *Model {
-	return newModel(80, 24)
+	return newModel(80, 24, testStyles())
+}
+
+// testStyles renders without colour, as a terminal with no colour support would.
+func testStyles() ui.Styles {
+	r := lipgloss.NewRenderer(io.Discard)
+	r.SetColorProfile(termenv.Ascii)
+	return ui.NewStyles(r)
 }
 
 func TestModel_initiallyAlive(t *testing.T) {

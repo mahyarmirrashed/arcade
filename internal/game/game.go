@@ -1,7 +1,11 @@
 // Package game defines the Game interface and Registry shared across the arcade.
 package game
 
-import tea "github.com/charmbracelet/bubbletea"
+import (
+	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/mahyarmirrashed/arcade/internal/ui"
+)
 
 // Game is implemented by every playable game in the arcade.
 // The interface is defined here (the consumer), not in the individual game
@@ -14,8 +18,9 @@ type Game interface {
 	Description() string
 
 	// New returns a fresh Bubbletea model for a new session.
-	// width and height are the dimensions of the player's terminal.
-	New(width, height int) tea.Model
+	// width and height are the dimensions of the player's terminal, and styles
+	// render for that player's terminal.
+	New(width, height int, styles ui.Styles) tea.Model
 }
 
 // Registry holds the set of available games, in registration order.
