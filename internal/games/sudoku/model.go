@@ -272,20 +272,24 @@ func (m *Model) cellStyle(r, c int) lipgloss.Style {
 	}
 }
 
-// borderSt returns the style for a border element.
-// boxEdge=true for outer edges and box-boundary lines (brighter).
-func (m *Model) borderSt(boxEdge bool) lipgloss.Style {
-	if boxEdge {
-		return m.styles.NewStyle().Foreground(ui.ColorSubtle)
-	}
+// boxSt is the style for outer edges and box-boundary lines: bright white.
+func (m *Model) boxSt() lipgloss.Style {
+	return m.styles.NewStyle().Foreground(ui.ColorText)
+}
+
+// innerSt is the style for inner column/row separators within a 3x3 box: muted grey.
+func (m *Model) innerSt() lipgloss.Style {
 	return m.styles.NewStyle().Foreground(ui.ColorMuted)
 }
 
 func (m *Model) dataRow(r int) string {
 	var sb strings.Builder
 	for c := 0; c < size; c++ {
-		boxEdge := c%3 == 0
-		sb.WriteString(m.borderSt(boxEdge).Render(segV))
+		if c%3 == 0 {
+			sb.WriteString(m.boxSt().Render(segV))
+		} else {
+			sb.WriteString(m.innerSt().Render(segV))
+		}
 
 		val := m.current[r][c]
 		st := m.cellStyle(r, c)
@@ -297,49 +301,47 @@ func (m *Model) dataRow(r int) string {
 			sb.WriteString(st.Render(string(rune('0' + val))))
 		}
 	}
-	sb.WriteString(m.borderSt(true).Render(segV))
+	sb.WriteString(m.boxSt().Render(segV))
 	return sb.String()
 }
 
 // hBorder renders a full horizontal border line.
-// top/bottom use outer corners; mid rows use T-junctions or crosses.
-func (m *Model) hBorder(left, right, boxMid, innerMid, horiz string, boxEdge bool) string {
+// isBox=true means this is an outer edge or box-boundary row (white);
+// false means it is an inner row within a box (muted).
+func (m *Model) hBorder(left, right, boxMid, innerMid string, isBox bool) string {
 	var sb strings.Builder
-	outer := m.borderSt(true)
-	box := m.borderSt(true)
-	inner := m.borderSt(false)
-	_ = box
-	sb.WriteString(outer.Render(left))
+	lineSt := m.boxSt()
+	if !isBox {
+		lineSt = m.innerSt()
+	}
+	sb.WriteString(m.boxSt().Render(left))
 	for c := 0; c < size; c++ {
-		// Horizontal segment colour: box edge rows brighter, inner rows muted.
-		sb.WriteString(m.borderSt(boxEdge).Render(horiz))
+		sb.WriteString(lineSt.Render(segH))
 		if c == size-1 {
-			sb.WriteString(outer.Render(right))
+			sb.WriteString(m.boxSt().Render(right))
 		} else if (c+1)%3 == 0 {
-			// Box boundary column junction.
-			sb.WriteString(m.borderSt(true).Render(boxMid))
+			sb.WriteString(m.boxSt().Render(boxMid))
 		} else {
-			// Inner column junction.
-			sb.WriteString(inner.Render(innerMid))
+			sb.WriteString(lineSt.Render(innerMid))
 		}
 	}
 	return sb.String()
 }
 
 func (m *Model) topBorder() string {
-	return m.hBorder(cTL, cTR, jTop, jTop, segH, true)
+	return m.hBorder(cTL, cTR, jTop, jTop, true)
 }
 
 func (m *Model) bottomBorder() string {
-	return m.hBorder(cBL, cBR, jBot, jBot, segH, true)
+	return m.hBorder(cBL, cBR, jBot, jBot, true)
 }
 
 func (m *Model) thickMidBorder() string {
-	return m.hBorder(jLeft, jRight, jCross, jCross, segH, true)
+	return m.hBorder(jLeft, jRight, jCross, jCross, true)
 }
 
 func (m *Model) thinMidBorder() string {
-	return m.hBorder(jLeft, jRight, jCross, jCross, segH, false)
+	return m.hBorder(jLeft, jRight, jCross, jCross, false)
 }
 
 func (m *Model) renderHelp() string {
