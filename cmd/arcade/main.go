@@ -24,6 +24,7 @@ import (
 	"github.com/mahyarmirrashed/arcade/internal/config"
 	"github.com/mahyarmirrashed/arcade/internal/game"
 	_2048 "github.com/mahyarmirrashed/arcade/internal/games/2048"
+	"github.com/mahyarmirrashed/arcade/internal/games/connect4"
 	"github.com/mahyarmirrashed/arcade/internal/games/minesweeper"
 	"github.com/mahyarmirrashed/arcade/internal/games/pasur"
 	"github.com/mahyarmirrashed/arcade/internal/games/snake"
@@ -45,6 +46,7 @@ func main() {
 	// Games are listed alphabetically in the lobby.
 	reg := game.NewRegistry(
 		&_2048.Model{},
+		&connect4.Model{},
 		&minesweeper.Model{},
 		&pasur.Model{},
 		&snake.Model{},
