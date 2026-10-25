@@ -7,13 +7,16 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/log"
 	"github.com/charmbracelet/ssh"
 	"github.com/charmbracelet/wish"
 
-	"github.com/mahyarmirrashed/arcade/internal/lobby"
+	"github.com/mahyarmirrashed/arcade/internal/game"
+	"github.com/mahyarmirrashed/arcade/internal/games/tetris"
+	"github.com/mahyarmirrashed/arcade/internal/root"
 	"github.com/mahyarmirrashed/arcade/internal/server"
 )
 
@@ -23,7 +26,11 @@ const (
 )
 
 func main() {
-	s, err := server.New(handler,
+	reg := game.NewRegistry(
+		&tetris.Model{},
+	)
+
+	s, err := server.New(handler(reg),
 		wish.WithAddress(addr),
 		wish.WithHostKeyPath(hostKey),
 	)
@@ -44,7 +51,7 @@ func main() {
 	<-done
 	log.Info("shutting down")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*1e9) // 30s
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	if err := s.Shutdown(ctx); err != nil {
@@ -52,8 +59,10 @@ func main() {
 	}
 }
 
-func handler(sess ssh.Session) (tea.Model, []tea.ProgramOption) {
-	pty, _, _ := sess.Pty()
-	m := lobby.New(pty.Window.Width, pty.Window.Height)
-	return m, []tea.ProgramOption{tea.WithAltScreen()}
+func handler(reg *game.Registry) func(ssh.Session) (tea.Model, []tea.ProgramOption) {
+	return func(sess ssh.Session) (tea.Model, []tea.ProgramOption) {
+		pty, _, _ := sess.Pty()
+		m := root.New(pty.Window.Width, pty.Window.Height, reg)
+		return m, []tea.ProgramOption{tea.WithAltScreen()}
+	}
 }
