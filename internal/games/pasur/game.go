@@ -346,6 +346,10 @@ func (b *broker) Select(code string, seat playerIndex, handIdx *int) {
 	if !ok || r.Phase != phasePlaying || r.Game.Turn != seat {
 		return
 	}
+	if handIdx != nil && (*handIdx >= len(r.Game.Hands[seat]) || *handIdx < 0) {
+		// Stale cursor - clear the selection rather than panic.
+		handIdx = nil
+	}
 	r.SelectedCard = handIdx
 	if handIdx != nil {
 		card := r.Game.Hands[seat][*handIdx]

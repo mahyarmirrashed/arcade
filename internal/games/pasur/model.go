@@ -125,6 +125,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case stateMsg:
 		m.snapshot = snapshotRoom(msg.room, m.seat)
 		m.syncState()
+		// Clamp cursor to valid range after hand size may have changed.
+		if n := len(m.snapshot.myHand); n > 0 && m.handCursor >= n {
+			m.handCursor = n - 1
+		}
 		return m, m.waitForUpdate()
 
 	case joinResultMsg:
