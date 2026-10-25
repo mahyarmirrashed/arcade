@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -51,5 +52,18 @@ func TestStandalone_otherMessagesReachGame(t *testing.T) {
 	}
 	if _, ok := next.(standalone); !ok {
 		t.Errorf("Update returned %T; want standalone so quit keys keep working", next)
+	}
+}
+
+func TestStandalone_resizeClearsScreenAndReachesGame(t *testing.T) {
+	game := &recorder{}
+
+	_, cmd := standalone{game}.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
+
+	if cmd == nil || fmt.Sprintf("%T", cmd()) != fmt.Sprintf("%T", tea.ClearScreen()) {
+		t.Error("resize did not clear the screen")
+	}
+	if _, ok := game.last.(tea.WindowSizeMsg); !ok {
+		t.Errorf("game received %v; want the resize", game.last)
 	}
 }

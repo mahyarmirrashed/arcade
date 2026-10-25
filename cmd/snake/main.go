@@ -87,5 +87,10 @@ func (s standalone) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 	next, cmd := s.Model.Update(msg)
+	if _, ok := msg.(tea.WindowSizeMsg); ok {
+		// Bubble Tea redraws on resize but doesn't clear, so remnants of the
+		// old layout could stay on screen.
+		cmd = tea.Batch(tea.ClearScreen, cmd)
+	}
 	return standalone{next}, cmd
 }
