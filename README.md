@@ -26,9 +26,6 @@ Both binaries accept the following flags:
 ## Terminal requirements
 
 - Recommended size: **80×24** or larger.
-- Resizing is supported at any time. If the terminal becomes too small for the
-  current screen, it shows the size it needs and the game pauses: Snake waits
-  for `p` once it fits again, Tetris carries on by itself.
 
 ## Leaderboards
 
