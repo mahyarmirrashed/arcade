@@ -2,11 +2,16 @@
 package server
 
 import (
+	"time"
+
+	"golang.org/x/time/rate"
+
 	"github.com/charmbracelet/ssh"
 	"github.com/charmbracelet/wish"
 	"github.com/charmbracelet/wish/activeterm"
 	"github.com/charmbracelet/wish/bubbletea"
 	"github.com/charmbracelet/wish/logging"
+	"github.com/charmbracelet/wish/ratelimiter"
 	"github.com/charmbracelet/wish/recover"
 )
 
@@ -16,12 +21,16 @@ import (
 //
 // Middleware order (outermost → innermost):
 //
-//	logging → recover → activeterm → bubbletea(handler)
+//	logging → ratelimiter → recover → activeterm → bubbletea(handler)
 func New(handler bubbletea.Handler, opts ...ssh.Option) (*ssh.Server, error) {
+	// Allow 5 new connections per minute per IP, burst of 3.
+	rl := ratelimiter.NewRateLimiter(rate.Every(time.Minute/5), 3, 1024)
+
 	middleware := wish.WithMiddleware(
 		bubbletea.Middleware(handler),
 		activeterm.Middleware(),
 		recover.Middleware(),
+		ratelimiter.Middleware(rl),
 		logging.Middleware(),
 	)
 
