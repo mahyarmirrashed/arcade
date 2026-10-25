@@ -111,8 +111,9 @@ type Game interface {
     // Description returns a short one-line description shown in the lobby.
     Description() string
     // New returns a fresh Bubbletea model for a new session.
-    // width and height are the dimensions of the player's terminal.
-    New(width, height int) tea.Model
+    // width and height are the dimensions of the player's terminal, and
+    // styles render for that player's terminal (see Shared styles below).
+    New(width, height int, styles ui.Styles) tea.Model
 }
 ```
 
@@ -399,17 +400,35 @@ Do not define colours inline in game packages. Use only the shared variables:
 | `ui.ColorSubtle` | 245 (light grey) | secondary labels |
 | `ui.ColorMuted` | 238 (dark grey) | de-emphasised text, borders, help |
 | `ui.ColorInverse` | 0 (black) | selected item background |
+| `ui.Spectrum` | 196, 208, 226, 46, 51, 21, 129 | game pieces in rainbow order (matches the Tetris piece colours; Snake's segments) |
 
 ### Shared styles
 
-| Variable | Usage |
-|----------|-------|
-| `ui.Title` | Game name heading — bold, `ColorText` |
-| `ui.Subtitle` | Section labels (score, level, next, hold) — `ColorSubtle` |
-| `ui.Muted` | Help text, empty state — `ColorMuted` |
-| `ui.Accent` | Highlighted values — bold, `ColorText` |
-| `ui.Error` | Game-over message — bold, reversed |
-| `ui.Border` | Content border — `NormalBorder`, `ColorMuted` |
+Styles are built **per SSH session**, never globally. A global Lip Gloss style
+takes its colour support from the server's terminal, so a server started in the
+background (or deployed) would send every player plain text. Each SSH handler
+builds the session's styles once and passes them down:
+
+```go
+styles := ui.NewStyles(bubbletea.MakeRenderer(sess)) // wish's bubbletea package
+m := root.New(width, height, reg, styles)             // root hands them to the lobby and Game.New
+```
+
+Games keep the `ui.Styles` they are given and render only with it:
+
+| Field | Usage |
+|-------|-------|
+| `styles.Title` | Game name heading — bold, `ColorText` |
+| `styles.Subtitle` | Section labels (score, level, next, hold) — `ColorSubtle` |
+| `styles.Muted` | Help text, empty state — `ColorMuted` |
+| `styles.Accent` | Highlighted values — bold, `ColorText` |
+| `styles.Error` | Game-over message — bold, reversed |
+| `styles.Border` | Content border — `NormalBorder`, `ColorMuted` |
+| `styles.Selected` | Selected list item — bold, inverted |
+
+For anything else (piece colours, padding), use `styles.NewStyle()`, never
+`lipgloss.NewStyle()`. Tests build styles from a renderer with a fixed colour
+profile, e.g. `lipgloss.NewRenderer(io.Discard)` with `termenv.Ascii`.
 
 ### Game layout structure
 
@@ -430,7 +449,7 @@ Every game `View()` must follow this pattern:
 ```
 
 - `JoinHorizontal(lipgloss.Bottom, help, "  ", boardWithTitle, "  ", side)`
-- Title rendered with `ui.Title` above the board using `JoinVertical`
+- Title rendered with `styles.Title` above the board using `JoinVertical`
 - Help and side panels padded `PaddingBottom(1)` to align with the board's
   inner content (the border adds 1 row top and bottom)
 - All multi-line content built with `lipgloss.JoinVertical` — no raw `\n`
@@ -448,7 +467,7 @@ Game names are lowercase everywhere — in `Name()`, titles, commit messages,
 and display strings. `"tetris"`, `"snake"`, not `"Tetris"`, `"Snake"`.
 
 > Exception: `Name()` returns the display name used in the lobby list. It may
-> be capitalised there if desired (e.g. `"Snake"`), but the `ui.Title.Render`
+> be capitalised there if desired (e.g. `"Snake"`), but the `styles.Title.Render`
 > call in `View()` should always use lowercase.
 
 ---
