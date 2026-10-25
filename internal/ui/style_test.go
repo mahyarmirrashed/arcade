@@ -40,3 +40,19 @@ func TestStyles_NewStyle_usesTheSessionRenderer(t *testing.T) {
 		t.Errorf("NewStyle().Render = %q; want colour code 38;5;196", got)
 	}
 }
+
+func TestTooSmall_saysWhatSizeIsNeeded(t *testing.T) {
+	s := ui.NewStyles(renderer(termenv.Ascii))
+
+	got := s.TooSmall(40, 10, 80, 24)
+
+	if !strings.Contains(got, "terminal too small") {
+		t.Errorf("TooSmall() = %q; want it to say the terminal is too small", got)
+	}
+	if !strings.Contains(got, "80x24") {
+		t.Errorf("TooSmall() = %q; want the needed size 80x24", got)
+	}
+	if w, h := lipgloss.Size(got); w != 40 || h != 10 {
+		t.Errorf("TooSmall() size = %dx%d; want it to fill the 40x10 terminal", w, h)
+	}
+}

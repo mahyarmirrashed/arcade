@@ -8,7 +8,11 @@
 // Inspired by terminal.shop's minimal aesthetic.
 package ui
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"fmt"
+
+	"github.com/charmbracelet/lipgloss"
+)
 
 // Palette.
 var (
@@ -63,3 +67,13 @@ func NewStyles(r *lipgloss.Renderer) Styles {
 // NewStyle returns a blank style for the same session, for game-specific
 // styling such as piece colours.
 func (s Styles) NewStyle() lipgloss.Style { return s.r.NewStyle() }
+
+// TooSmall is the notice shown in place of a screen that doesn't fit a
+// width x height terminal. minW and minH are the size the screen needs.
+func (s Styles) TooSmall(width, height, minW, minH int) string {
+	notice := lipgloss.JoinVertical(lipgloss.Center,
+		s.Error.Render(" terminal too small "),
+		s.Muted.Render(fmt.Sprintf("resize to at least %dx%d", minW, minH)),
+	)
+	return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, notice)
+}
