@@ -9,7 +9,7 @@ import (
 
 // Game is implemented by every playable game in the arcade.
 // The interface is defined here (the consumer), not in the individual game
-// packages — idiomatic Go interface placement.
+// packages - idiomatic Go interface placement.
 type Game interface {
 	// Name returns the display name shown in the lobby.
 	Name() string
@@ -32,7 +32,7 @@ type SizeConstraint interface {
 }
 
 // Registry holds the set of available games, in registration order.
-// It is injected at startup — no global state, no init().
+// It is injected at startup - no global state, no init().
 type Registry struct {
 	games []Game
 }

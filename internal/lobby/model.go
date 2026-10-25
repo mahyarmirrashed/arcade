@@ -98,7 +98,7 @@ func New(width, height int, reg *game.Registry, styles ui.Styles) Model {
 	lh := listHeight(height)
 	l := list.New(items, newDelegate(styles), listWidth, lh)
 
-	// No title — we render it ourselves in View.
+	// No title - we render it ourselves in View.
 	l.SetShowTitle(false)
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)

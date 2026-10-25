@@ -89,7 +89,7 @@ type Model struct {
 	styles    ui.Styles
 }
 
-// — game.Game implementation —
+// - game.Game implementation -
 
 // Name implements game.Game.
 func (m *Model) Name() string { return "Tetris" }
@@ -97,7 +97,7 @@ func (m *Model) Name() string { return "Tetris" }
 // Description implements game.Game.
 func (m *Model) Description() string { return "clear lines, survive gravity" }
 
-// New implements game.Game — returns a fresh model for a new session.
+// New implements game.Game - returns a fresh model for a new session.
 func (m *Model) New(width, height int, styles ui.Styles) tea.Model {
 	return newModel(width, height, styles)
 }
@@ -132,7 +132,7 @@ func (m *Model) spawn() {
 	m.current = p
 }
 
-// — tea.Model implementation —
+// - tea.Model implementation -
 
 // Init implements tea.Model.
 func (m *Model) Init() tea.Cmd {
@@ -220,7 +220,7 @@ func (m *Model) lock() {
 
 // holdPiece swaps the current piece with the held piece.
 // If nothing is held yet, the current piece is stashed and the next spawns.
-// Can only be used once per piece — resets when a piece locks.
+// Can only be used once per piece - resets when a piece locks.
 func (m *Model) holdPiece() {
 	if !m.canHold {
 		return
@@ -228,7 +228,7 @@ func (m *Model) holdPiece() {
 	m.canHold = false
 
 	if m.hold == nil {
-		// No held piece yet — stash current and spawn next.
+		// No held piece yet - stash current and spawn next.
 		pt := m.current.pt
 		m.hold = &pt
 		m.spawn()
@@ -267,7 +267,7 @@ func (m *Model) tryRotate(dir int) {
 
 	offsets := WallKickOffsets(m.current.pt, fromRot, toRot)
 	if len(offsets) == 0 {
-		// O piece or no table entry — attempt plain rotation.
+		// O piece or no table entry - attempt plain rotation.
 		offsets = [][2]int{{0, 0}}
 	}
 
@@ -292,7 +292,7 @@ func (m *Model) ghostRow() int {
 	return row
 }
 
-// — View —
+// - View -
 
 const (
 	cellFull  = "██"

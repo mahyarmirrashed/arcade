@@ -81,7 +81,7 @@ func TestRoot_ctrlCFromGameReturnsToLobby(t *testing.T) {
 func TestRoot_windowResizeTracked(t *testing.T) {
 	m := newTestRoot()
 	m = update(m, tea.WindowSizeMsg{Width: 120, Height: 40})
-	// Transition to a game — the game should be spawned at the new size.
+	// Transition to a game - the game should be spawned at the new size.
 	// We verify by checking the View doesn't panic (game gets non-zero dims).
 	m = update(m, lobby.SelectMsg{Game: stubGame{name: "Stub"}})
 	if m.State() != root.StatePlaying {

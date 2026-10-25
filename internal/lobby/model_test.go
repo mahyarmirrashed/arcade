@@ -49,7 +49,7 @@ func TestLobby_downMovesSelection(t *testing.T) {
 
 	m := newTestModel(alpha, beta)
 
-	// send the down key — bubbles/list handles "down" and "j"
+	// send the down key - bubbles/list handles "down" and "j"
 	next := update(m, tea.KeyMsg{Type: tea.KeyDown})
 
 	lm, ok := next.(lobby.Model)
@@ -66,7 +66,7 @@ func TestLobby_downMovesSelection(t *testing.T) {
 func TestLobby_upWraps(t *testing.T) {
 	m := newTestModel(stubGame{"A"}, stubGame{"B"}, stubGame{"C"})
 
-	// up from 0 should not go negative (stays at 0 — bubbles does not wrap by default)
+	// up from 0 should not go negative (stays at 0 - bubbles does not wrap by default)
 	next := update(m, tea.KeyMsg{Type: tea.KeyUp})
 	lm := next.(lobby.Model)
 	if lm.Index() < 0 {

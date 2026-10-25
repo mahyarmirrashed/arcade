@@ -53,7 +53,7 @@ type Model struct {
 	rng    *rand.Rand
 }
 
-// — game.Game implementation —
+// - game.Game implementation -
 
 func (m *Model) Name() string        { return "2048" }
 func (m *Model) Description() string { return "slide tiles, reach 2048" }
@@ -76,7 +76,7 @@ func newModel(width, height int) *Model {
 	}
 }
 
-// — tea.Model implementation —
+// - tea.Model implementation -
 
 func (m *Model) Init() tea.Cmd { return nil }
 
@@ -144,7 +144,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// — View —
+// - View -
 
 // tileStyle returns a Lip Gloss style for the given tile value.
 // Higher tiles get brighter colours from ui.Spectrum.

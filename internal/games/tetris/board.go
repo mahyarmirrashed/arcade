@@ -58,7 +58,7 @@ func clearLines(b board) (board, int) {
 		newRows[dest] = b[src]
 		dest--
 	}
-	// dest+1..0 remain zero-value (empty) — correct behaviour.
+	// dest+1..0 remain zero-value (empty) - correct behaviour.
 	return board(newRows), cleared
 }
 

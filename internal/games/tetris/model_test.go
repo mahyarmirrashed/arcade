@@ -166,7 +166,7 @@ func TestClearLines_compactsCorrectly(t *testing.T) {
 	for c := 0; c < boardCols; c++ {
 		b[19][c] = cell{filled: true, pieceType: PieceI}
 	}
-	// Row 18: partial — only col 0
+	// Row 18: partial - only col 0
 	b[18][0] = cell{filled: true, pieceType: PieceJ}
 
 	newB, cleared := clearLines(b)
@@ -305,7 +305,7 @@ func TestModel_lockIncreasesScore(t *testing.T) {
 			m.board[r][c] = cell{filled: true, pieceType: PieceJ}
 		}
 	}
-	// Fill the last column in those rows directly — this completes 4 rows.
+	// Fill the last column in those rows directly - this completes 4 rows.
 	for r := 16; r < 20; r++ {
 		m.board[r][boardCols-1] = cell{filled: true, pieceType: PieceJ}
 	}
@@ -377,7 +377,7 @@ func TestHold_firstHoldStashesCurrentAndSpawnsNext(t *testing.T) {
 	if *m.hold != original {
 		t.Errorf("held piece = %d; want %d", *m.hold, original)
 	}
-	// Current piece should now be the previously queued next — different object.
+	// Current piece should now be the previously queued next - different object.
 	if m.current.pt == original && m.current.row == 0 {
 		// Not necessarily wrong if rng gave same type, but the piece should
 		// have been freshly spawned (row=0, rot=0).
@@ -417,10 +417,10 @@ func TestHold_secondHoldSwapsCurrentWithHeld(t *testing.T) {
 func TestHold_cannotHoldTwiceWithoutLocking(t *testing.T) {
 	m := newTestModel()
 
-	m.holdPiece() // first hold — valid
+	m.holdPiece() // first hold - valid
 	heldAfterFirst := *m.hold
 
-	m.holdPiece() // second hold without locking — should be ignored
+	m.holdPiece() // second hold without locking - should be ignored
 	if *m.hold != heldAfterFirst {
 		t.Error("hold should be blocked until the current piece locks")
 	}

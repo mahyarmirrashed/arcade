@@ -13,7 +13,7 @@ import (
 	"github.com/mahyarmirrashed/arcade/internal/server"
 )
 
-// nullModel is the simplest valid tea.Model — does nothing.
+// nullModel is the simplest valid tea.Model - does nothing.
 type nullModel struct{}
 
 func (nullModel) Init() tea.Cmd                        { return nil }

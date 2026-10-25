@@ -4,7 +4,7 @@
 // global styles, because those would take colour support from the server's
 // terminal instead of the player's.
 //
-// Palette: monochrome — white text, dark grey accents, minimal borders.
+// Palette: monochrome - white text, dark grey accents, minimal borders.
 // Inspired by terminal.shop's minimal aesthetic.
 package ui
 
@@ -13,10 +13,11 @@ import "github.com/charmbracelet/lipgloss"
 // Palette.
 var (
 	ColorText    = lipgloss.Color("255") // bright white
-	ColorSubtle  = lipgloss.Color("245") // light grey — secondary text
-	ColorMuted   = lipgloss.Color("238") // dark grey — de-emphasised / borders
-	ColorInverse = lipgloss.Color("0")   // black — used for selected item bg
+	ColorSubtle  = lipgloss.Color("245") // light grey - secondary text
+	ColorMuted   = lipgloss.Color("238") // dark grey - de-emphasised / borders
+	ColorInverse = lipgloss.Color("0")   // black - used for selected item bg
 )
+
 
 // Spectrum is a rainbow of bright colours for game pieces, matching the Tetris
 // piece colours: red, orange, yellow, green, cyan, blue, purple.
