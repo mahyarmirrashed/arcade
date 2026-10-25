@@ -320,12 +320,6 @@ func (m *Model) View() string {
 
 	game := lipgloss.JoinHorizontal(lipgloss.Bottom, help, "  ", boardWithTitle, "  ", side)
 
-	if !m.alive {
-		overlay := ui.Error.Render(" game over ") + "\n" +
-			ui.Muted.Render("r  restart  ·  q  quit")
-		game = lipgloss.JoinVertical(lipgloss.Center, game, "", overlay)
-	}
-
 	return lipgloss.Place(m.width, m.height,
 		lipgloss.Center, lipgloss.Center,
 		game,
@@ -372,14 +366,29 @@ func (m *Model) renderBoard() string {
 
 	// Render rows to string.
 	var sb strings.Builder
-	borderStyle := ui.Border
 	for r := 0; r < boardRows; r++ {
 		sb.WriteString(strings.Join(grid[r][:], ""))
 		if r < boardRows-1 {
 			sb.WriteByte('\n')
 		}
 	}
-	return borderStyle.Render(sb.String())
+
+	inner := sb.String()
+
+	// Game-over overlay: place centered text on top of the board content,
+	// then wrap in the border.
+	if !m.alive {
+		// Each cell is 2 chars wide; board inner width = boardCols*2.
+		innerW := boardCols * 2
+		overlay := ui.Error.Render(" game over ")
+		inner = lipgloss.Place(innerW, boardRows,
+			lipgloss.Center, lipgloss.Center,
+			overlay,
+			lipgloss.WithWhitespaceChars(" "),
+		)
+	}
+
+	return ui.Border.Render(inner)
 }
 
 func (m *Model) renderHelp() string {
@@ -391,6 +400,7 @@ func (m *Model) renderHelp() string {
 		line("↓    soft drop"),
 		line("spc  hard drop"),
 		line("c    hold"),
+		line("r    restart"),
 		line("q    quit"),
 	)
 }
