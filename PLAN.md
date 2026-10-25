@@ -56,8 +56,6 @@ arcade/
 
 ---
 
----
-
 ## Core Abstractions
 
 ### The `Game` Interface (`internal/game/game.go`)
@@ -153,7 +151,113 @@ All stages are done. For historical context:
 | Game            | Notes                                           |
 | --------------- | ----------------------------------------------- |
 | Conway's Life   | Simulation/screensaver, no interaction needed   |
-| Pong (2-player) | Requires server-side room broker — deferred     |
+| Pong (2-player) | Requires server-side room broker - see below    |
+
+---
+
+## Multiplayer Architecture
+
+Used by Pasur and any future 2+ player games. The pattern is a **server-side
+room broker** — each SSH session runs its own `tea.Program` as normal, but
+they share a single `Room` that holds the authoritative game state.
+
+### Room lifecycle
+
+```
+Player A selects game
+    → broker.Create() → Room{code: "XKCD", state: waiting}
+    → A's model shows "your code: XKCD, waiting for opponent..."
+
+Player B selects game → sees join prompt → types "XKCD"
+    → broker.Join("XKCD") → room transitions to playing
+    → broker broadcasts stateMsg to both A and B's channels
+    → both programs re-render simultaneously
+```
+
+### Room codes
+
+4-character uppercase alphanumeric codes (e.g. `XKCD`). Generated
+randomly at room creation. Stored in the broker's map for the lifetime
+of the room.
+
+### Disconnect and reconnect
+
+- If either player disconnects, the room enters a **grace period** (60s).
+- During grace, the remaining player sees "opponent disconnected, waiting..."
+- If the disconnected player reconnects and types their room code within
+  the grace period, the game resumes from the exact state it was in.
+- If the grace period expires, the room is deleted and both players are
+  returned to the lobby.
+- The player who stayed sees "opponent did not reconnect" and returns to lobby.
+
+### Broker implementation (`internal/games/<game>/game.go`)
+
+Each multiplayer game owns its own broker. The broker is a package-level
+singleton (the only acceptable global in the codebase — it must survive
+across sessions):
+
+```go
+// Broker is the package-level room registry. Safe for concurrent use.
+var Broker = newBroker()
+
+type broker struct {
+    mu    sync.Mutex
+    rooms map[string]*Room
+}
+
+type Room struct {
+    Code      string
+    State     GameState       // authoritative game state
+    Players   [2]chan stateMsg // one channel per player; nil if disconnected
+    GraceEnds time.Time       // non-zero during grace period
+}
+
+// stateMsg is sent to a player's channel whenever the room state changes.
+// The player's tea.Program receives it and calls View() to re-render.
+type stateMsg struct {
+    Room *Room
+}
+```
+
+Key rules:
+- All mutations to `Room.State` happen under `broker.mu`.
+- A player's action sends to the room, which updates state and fans out
+  `stateMsg` to both players' channels (buffered, size 1 — drop if full
+  to avoid blocking the lock).
+- The player's `tea.Program` polls its channel via a `tea.Cmd` that blocks
+  on receive, returning the `stateMsg` as a `tea.Msg`.
+- The room channel is created fresh each time a player (re)connects;
+  the old channel is discarded.
+
+### Per-player model states
+
+Every multiplayer game's `Model` has these states in addition to its
+game-specific ones:
+
+```
+stateWaiting  - player created a room, showing code, waiting for opponent
+stateJoining  - player is typing a room code to join
+statePlaying  - both players connected, game in progress
+stateGrace    - opponent disconnected, grace period countdown
+stateOver     - game finished (win/lose/abandoned)
+```
+
+### Integration with game.Game
+
+Multiplayer games implement `game.Game` exactly like single-player games.
+`New(width, height, styles)` returns the player's model in `stateWaiting`,
+which immediately calls `broker.Create()` and displays the code. The
+`q`/`ctrl+c` quit-handling convention still applies — the root model
+intercepts quit and returns the player to the lobby, which also triggers
+room cleanup.
+
+### Testing
+
+The broker and room logic are unit-tested without real `tea.Program`s by
+directly calling the exported broker methods and inspecting `Room.State`.
+The `stateMsg` fan-out is tested by checking that both channels receive
+after a mutation. No `time.Sleep` — grace period expiry is tested by
+injecting a clock.
 
 ---
 
