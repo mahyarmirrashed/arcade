@@ -13,8 +13,9 @@ import (
 	"github.com/mahyarmirrashed/arcade/internal/ui"
 )
 
-// Compile-time check: Model must satisfy game.Game.
-var _ game.Game = (*Model)(nil)
+// Compile-time checks.
+var _ game.Game   = (*Model)(nil)
+var _ game.Ranked = (*Model)(nil)
 
 // cluesTarget is how many given cells to leave in the puzzle (medium difficulty).
 const cluesTarget = 35
@@ -50,10 +51,11 @@ type Model struct {
 	solution grid // the unique solution
 	current  grid // player's working grid
 
-	curR   int
-	curC   int
-	state  gameState
-	errors grid // tracks cells with invalid entries (non-zero = conflicted)
+	curR    int
+	curC    int
+	state   gameState
+	started time.Time      // set on first digit placed
+	now     func() time.Time // clock; replaced in tests
 
 	width  int
 	height int
@@ -69,6 +71,9 @@ func (m *Model) New(width, height int, styles ui.Styles) tea.Model {
 	return newModel(width, height, styles)
 }
 
+// Ranking implements game.Ranked.
+func (m *Model) Ranking() game.Ranking { return game.ByTime }
+
 func newModel(width, height int, styles ui.Styles) *Model {
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	puzzle, solution := newPuzzle(rng, cluesTarget)
@@ -80,6 +85,7 @@ func newModel(width, height int, styles ui.Styles) *Model {
 		height:   height,
 		styles:   styles,
 		state:    statePlaying,
+		now:      time.Now,
 	}
 }
 
@@ -107,19 +113,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 type restartMsg struct{ m *Model }
 
 func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
-	if msg.String() == "r" && m.state == stateWon {
+	if msg.String() == "r" {
 		fresh := newModel(m.width, m.height, m.styles)
+		fresh.now = m.now
 		return func() tea.Msg { return restartMsg{fresh} }
 	}
 
 	if m.state != statePlaying {
 		return nil
-	}
-
-	// r restarts mid-game too.
-	if msg.String() == "r" {
-		fresh := newModel(m.width, m.height, m.styles)
-		return func() tea.Msg { return restartMsg{fresh} }
 	}
 
 	switch {
@@ -140,25 +141,31 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 			m.curC++
 		}
 	case key.Matches(msg, keys.clear):
-		m.place(0)
+		return m.place(0)
 	default:
 		s := msg.String()
 		if len(s) == 1 && s[0] >= '1' && s[0] <= '9' {
-			m.place(int(s[0] - '0'))
+			return m.place(int(s[0] - '0'))
 		}
 	}
 	return nil
 }
 
 // place sets the value at the cursor, validates, and checks for win.
-func (m *Model) place(num int) {
+func (m *Model) place(num int) tea.Cmd {
 	if m.locked(m.curR, m.curC) {
-		return
+		return nil
+	}
+	// Start the clock on the first digit placed.
+	if m.started.IsZero() && num != 0 {
+		m.started = m.now()
 	}
 	m.current[m.curR][m.curC] = num
 	if num != 0 && isSolved(m.current) {
 		m.state = stateWon
+		return game.Finished(m, game.Result{Won: true, Duration: m.now().Sub(m.started)})
 	}
+	return nil
 }
 
 // - View -
