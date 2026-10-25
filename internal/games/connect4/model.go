@@ -398,7 +398,7 @@ func (m *Model) renderBoard() string {
 func (m *Model) renderCursorRow(s snapshot) string {
 	cells := make([]string, cols)
 	for c := 0; c < cols; c++ {
-		w := m.styles.NewStyle().Width(5).Align(lipgloss.Center)
+		w := m.styles.NewStyle().Width(4).Align(lipgloss.Center)
 		// My cursor.
 		if s.turn == m.seat && c == m.cursor {
 			cells[c] = w.Foreground(pieceColor[m.seat]).Render("▼")
