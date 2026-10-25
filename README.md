@@ -9,19 +9,18 @@ ssh -p 2222 <host>
 ## Running
 
 ```
-go run ./cmd/arcade        # lobby on 127.0.0.1:2222
-go run ./cmd/snake         # standalone snake on 127.0.0.1:2223 (dev)
+go run ./cmd/arcade
 ```
 
-Both binaries accept the following flags:
+Flags:
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--addr` | `127.0.0.1:2222` / `127.0.0.1:2223` | address to listen on; pass e.g. `--addr :2222` to accept connections from other machines |
+| `--addr` | `127.0.0.1:2222` | address to listen on; pass e.g. `--addr :2222` to accept connections from other machines |
 | `--host-key` | `.ssh/id_ed25519` | path to ed25519 host key |
 | `--idle-timeout` | `30m` | disconnect idle sessions (`0` = disabled) |
 | `--shutdown-timeout` | `30s` | graceful shutdown window |
-| `--data-dir` | `data` | where `cmd/arcade` keeps the leaderboard |
+| `--data-dir` | `data` | directory for the leaderboard |
 
 ## Terminal requirements
 
@@ -45,8 +44,7 @@ scores compare fairly.
 
 Scores are saved to `<data-dir>/leaderboard.json` after every change and
 survive restarts. If that file can't be read, the server refuses to start
-rather than overwrite it. The standalone `cmd/snake` doesn't record scores.
-
+rather than overwrite it. 
 ## Controls
 
 Controls are shown in-game. `q` returns to the lobby from any game.

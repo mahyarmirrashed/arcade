@@ -29,8 +29,7 @@ type Config struct {
 	DataDir string
 }
 
-// Parse parses command-line flags into a Config, applying the given defaults
-// for addr and hostKeyPath (they differ between cmd/arcade and cmd/snake).
+// Parse parses command-line flags into a Config.
 // Like the flag package, it exits on bad flags and after printing -help.
 func Parse(defaultAddr, defaultHostKeyPath string) Config {
 	cfg, err := ParseArgs(os.Args[1:], defaultAddr, defaultHostKeyPath)
@@ -43,8 +42,7 @@ func Parse(defaultAddr, defaultHostKeyPath string) Config {
 	return cfg
 }
 
-// ParseArgs parses args into a Config, applying the given defaults for addr
-// and hostKeyPath.
+// ParseArgs parses args into a Config, applying the given defaults.
 func ParseArgs(args []string, defaultAddr, defaultHostKeyPath string) (Config, error) {
 	var cfg Config
 	fs := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)

@@ -162,7 +162,7 @@ func TestUpdate_sameSizeKeepsGame(t *testing.T) {
 }
 
 func TestUpdate_quitKeysLeftToRoot(t *testing.T) {
-	// The root model (or cmd/snake's wrapper) owns q and ctrl+c.
+	// The root model owns q and ctrl+c.
 	for _, key := range []tea.KeyMsg{runeKey("q"), {Type: tea.KeyCtrlC}} {
 		t.Run(key.String(), func(t *testing.T) {
 			m := newModel(80, 24, testRand(), testStyles())
