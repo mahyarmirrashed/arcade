@@ -2,6 +2,7 @@ package _2048
 
 import (
 	"math/rand"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -356,4 +357,31 @@ func TestModel_viewRendersWon(t *testing.T) {
 	m := newTestModel()
 	m.state = stateWon
 	_ = m.View()
+}
+
+func TestModel_tooSmallTerminalShowsNoticeAndHoldsBoard(t *testing.T) {
+	m := newTestModel()
+	before := m.g
+
+	m.Update(tea.WindowSizeMsg{Width: 20, Height: 8})
+	for _, k := range []tea.KeyType{tea.KeyLeft, tea.KeyRight, tea.KeyUp, tea.KeyDown} {
+		m.Update(tea.KeyMsg{Type: k})
+	}
+
+	if v := m.View(); !strings.Contains(v, "terminal too small") {
+		t.Errorf("20x8 view does not say the terminal is too small:\n%s", v)
+	}
+	if m.g != before {
+		t.Error("board changed while the player couldn't see it")
+	}
+}
+
+func TestModel_growingBackShowsBoard(t *testing.T) {
+	m := newTestModel()
+	m.Update(tea.WindowSizeMsg{Width: 20, Height: 8})
+	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+
+	if v := m.View(); strings.Contains(v, "terminal too small") || !strings.Contains(v, "2048") {
+		t.Errorf("80x24 view should show the game again:\n%s", v)
+	}
 }

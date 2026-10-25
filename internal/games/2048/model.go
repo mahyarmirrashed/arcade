@@ -106,6 +106,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if !ok {
 		return m, nil
 	}
+	// Hold the board while the player can't see it.
+	if !m.fits() {
+		return m, nil
+	}
 
 	var d direction
 	switch {
@@ -174,6 +178,24 @@ func (m *Model) tileStyle(value int) lipgloss.Style {
 }
 
 func (m *Model) View() string {
+	layout := m.layout()
+	if w, h := lipgloss.Size(layout); w > m.width || h > m.height {
+		return m.styles.TooSmall(m.width, m.height, w, h)
+	}
+	return lipgloss.Place(m.width, m.height,
+		lipgloss.Center, lipgloss.Center,
+		layout,
+	)
+}
+
+// fits reports whether the whole layout fits in the terminal.
+func (m *Model) fits() bool {
+	w, h := lipgloss.Size(m.layout())
+	return w <= m.width && h <= m.height
+}
+
+// layout renders the help beside the titled board.
+func (m *Model) layout() string {
 	help := m.renderHelp()
 	board := m.renderBoard()
 
@@ -185,10 +207,7 @@ func (m *Model) View() string {
 		pad.Render(help), "  ", boardWithTitle,
 	)
 
-	return lipgloss.Place(m.width, m.height,
-		lipgloss.Center, lipgloss.Center,
-		layout,
-	)
+	return layout
 }
 
 func (m *Model) renderBoard() string {
