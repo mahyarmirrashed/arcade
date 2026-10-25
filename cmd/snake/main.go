@@ -19,7 +19,6 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/charmbracelet/ssh"
 	"github.com/charmbracelet/wish"
-	bm "github.com/charmbracelet/wish/bubbletea"
 
 	"github.com/mahyarmirrashed/arcade/internal/config"
 	"github.com/mahyarmirrashed/arcade/internal/games/snake"
@@ -68,7 +67,7 @@ func handler(sess ssh.Session) (tea.Model, []tea.ProgramOption) {
 	pty, _, _ := sess.Pty()
 	// Styles come from the session's renderer so colours match the player's
 	// terminal, not the server's.
-	styles := ui.NewStyles(bm.MakeRenderer(sess))
+	styles := ui.NewStyles(server.Renderer(sess))
 	var g snake.Model
 	return standalone{g.New(pty.Window.Width, pty.Window.Height, styles)}, []tea.ProgramOption{tea.WithAltScreen()}
 }

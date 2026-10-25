@@ -19,7 +19,6 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/charmbracelet/ssh"
 	"github.com/charmbracelet/wish"
-	bm "github.com/charmbracelet/wish/bubbletea"
 
 	"github.com/mahyarmirrashed/arcade/internal/config"
 	"github.com/mahyarmirrashed/arcade/internal/game"
@@ -78,7 +77,7 @@ func handler(reg *game.Registry) func(ssh.Session) (tea.Model, []tea.ProgramOpti
 		pty, _, _ := sess.Pty()
 		// Styles come from the session's renderer so colours match the
 		// player's terminal, not the server's.
-		styles := ui.NewStyles(bm.MakeRenderer(sess))
+		styles := ui.NewStyles(server.Renderer(sess))
 		m := root.New(pty.Window.Width, pty.Window.Height, reg, styles)
 		return m, []tea.ProgramOption{tea.WithAltScreen()}
 	}
