@@ -1,47 +1,54 @@
 // Package ui provides shared Lip Gloss styles and the arcade colour palette.
 // All game packages and the lobby import from here to keep a consistent look.
+//
+// Palette: monochrome — white text, dark grey accents, minimal borders.
+// Inspired by terminal.shop's minimal aesthetic.
 package ui
 
 import "github.com/charmbracelet/lipgloss"
 
-// Palette — agree on these before parallel development begins.
+// Palette.
 var (
-	ColorPrimary   = lipgloss.Color("99")  // violet
-	ColorSecondary = lipgloss.Color("212") // pink
-	ColorAccent    = lipgloss.Color("86")  // cyan
-	ColorMuted     = lipgloss.Color("241") // grey
-	ColorText      = lipgloss.Color("255") // near-white
-	ColorError     = lipgloss.Color("196") // red
+	ColorText    = lipgloss.Color("255") // bright white
+	ColorSubtle  = lipgloss.Color("245") // light grey — secondary text
+	ColorMuted   = lipgloss.Color("238") // dark grey — de-emphasised / borders
+	ColorInverse = lipgloss.Color("0")   // black — used for selected item bg
 )
 
-// Base styles — copy these, then call additional methods on the copy.
-// Lip Gloss styles are value types; copying is safe and cheap.
+// Base styles — value types; copy freely.
 var (
-	// Title is used for screen headings.
+	// Title is used for screen/section headings.
 	Title = lipgloss.NewStyle().
 		Bold(true).
-		Foreground(ColorPrimary)
+		Foreground(ColorText)
 
-	// Subtitle is used for secondary headings and labels.
+	// Subtitle is used for secondary labels.
 	Subtitle = lipgloss.NewStyle().
-		Foreground(ColorSecondary)
+		Foreground(ColorSubtle)
 
-	// Muted is used for de-emphasised text such as keybinding hints.
+	// Muted is used for de-emphasised text (help hints, empty state).
 	Muted = lipgloss.NewStyle().
 		Foreground(ColorMuted)
 
-	// Accent highlights values like scores or selected items.
+	// Accent is used for highlighted values (scores, selected state).
 	Accent = lipgloss.NewStyle().
 		Bold(true).
-		Foreground(ColorAccent)
+		Foreground(ColorText)
 
-	// Error renders error or game-over messages.
+	// Error renders game-over or error messages.
 	Error = lipgloss.NewStyle().
 		Bold(true).
-		Foreground(ColorError)
+		Foreground(ColorText).
+		Reverse(true)
 
-	// Border wraps a content block with a rounded border in the primary colour.
+	// Border wraps a content block with a normal border in the muted colour.
 	Border = lipgloss.NewStyle().
-		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(ColorPrimary)
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(ColorMuted)
+
+	// Selected renders a selected list item — inverted.
+	Selected = lipgloss.NewStyle().
+		Bold(true).
+		Foreground(ColorInverse).
+		Background(ColorText)
 )
