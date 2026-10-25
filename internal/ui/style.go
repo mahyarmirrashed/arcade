@@ -52,3 +52,15 @@ var (
 		Foreground(ColorInverse).
 		Background(ColorText)
 )
+
+// Spectrum is a rainbow of bright colours for game pieces, matching the Tetris
+// piece colours: red, orange, yellow, green, cyan, blue, purple.
+var Spectrum = []lipgloss.Color{
+	lipgloss.Color("196"), // red
+	lipgloss.Color("208"), // orange
+	lipgloss.Color("226"), // yellow
+	lipgloss.Color("46"),  // green
+	lipgloss.Color("51"),  // cyan
+	lipgloss.Color("21"),  // blue
+	lipgloss.Color("129"), // purple
+}
