@@ -28,6 +28,7 @@ import (
 	"github.com/mahyarmirrashed/arcade/internal/games/minesweeper"
 	"github.com/mahyarmirrashed/arcade/internal/games/snake"
 	"github.com/mahyarmirrashed/arcade/internal/games/solitaire"
+	"github.com/mahyarmirrashed/arcade/internal/games/sudoku"
 	"github.com/mahyarmirrashed/arcade/internal/games/tetris"
 	"github.com/mahyarmirrashed/arcade/internal/games/wordle"
 	"github.com/mahyarmirrashed/arcade/internal/leaderboard"
@@ -47,6 +48,7 @@ func main() {
 		&minesweeper.Model{},
 		&snake.Model{},
 		&solitaire.Model{},
+		&sudoku.Model{},
 		&tetris.Model{},
 		&wordle.Model{},
 	)
