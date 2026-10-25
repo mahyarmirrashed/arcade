@@ -13,6 +13,15 @@ go run ./cmd/arcade        # lobby on :2222
 go run ./cmd/snake         # standalone snake on :2223 (dev)
 ```
 
+Both binaries accept the following flags:
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--addr` | `:2222` / `:2223` | address to listen on |
+| `--host-key` | `.ssh/id_ed25519` | path to ed25519 host key |
+| `--idle-timeout` | `30m` | disconnect idle sessions (`0` = disabled) |
+| `--shutdown-timeout` | `30s` | graceful shutdown window |
+
 ## Terminal requirements
 
 - Minimum size: **80×24**
