@@ -8,14 +8,14 @@ they pick a game. Each SSH session is fully isolated.
 
 ## Technology Stack
 
-| Role               | Library      | Import path               |
-| ------------------ | ------------ | ------------------------- |
-| SSH server         | Wish v2      | `charm.land/wish/v2`      |
-| TUI framework      | Bubbletea v2 | `charm.land/bubbletea/v2` |
-| Styling            | Lip Gloss v2 | `charm.land/lipgloss/v2`  |
-| UI components      | Bubbles v2   | `charm.land/bubbles/v2`   |
-| Structured logging | Charm Log v2 | `charm.land/log/v2`       |
-| SSH primitives     | Charm SSH    | `charm.land/ssh`          |
+| Role               | Library   | Import path                          |
+| ------------------ | --------- | ------------------------------------ |
+| SSH server         | Wish      | `github.com/charmbracelet/wish`      |
+| TUI framework      | Bubbletea | `github.com/charmbracelet/bubbletea` |
+| Styling            | Lip Gloss | `github.com/charmbracelet/lipgloss`  |
+| UI components      | Bubbles   | `github.com/charmbracelet/bubbles`   |
+| Structured logging | Charm Log | `github.com/charmbracelet/log`       |
+| SSH primitives     | Charm SSH | `github.com/charmbracelet/ssh`       |
 
 All dependencies managed via Go modules (`go.mod` / `go.sum`).  
 The Nix `devShells.default` already provides `go`; no additional Nix packages
@@ -173,7 +173,7 @@ compile and accept SSH connections.
 **Tasks:**
 
 1. `go mod init github.com/mahyarmirrashed/arcade`
-2. `go get charm.land/wish/v2 charm.land/bubbletea/v2 charm.land/lipgloss/v2 charm.land/bubbles/v2 charm.land/log/v2`
+2. `go get github.com/charmbracelet/wish github.com/charmbracelet/bubbletea github.com/charmbracelet/lipgloss github.com/charmbracelet/bubbles github.com/charmbracelet/log`
 3. `internal/server/server.go` —
    `NewServer(addr string, handler ...) *wish.Server` using functional options;
    middleware: `logging`, `activeterm`, `recover`, `bubbletea`
@@ -309,7 +309,7 @@ compile and accept SSH connections.
 
 **Tasks:**
 
-1. Rate limiting: `charm.land/wish/v2/ratelimiter` middleware
+1. Rate limiting: `github.com/charmbracelet/wish/ratelimiter` middleware
 2. Idle/max session timeouts: `wish.WithIdleTimeout`, `wish.WithMaxTimeout`
 3. Graceful shutdown: catch `SIGINT`/`SIGTERM`, call `server.Shutdown(ctx)` with
    30-second timeout
@@ -348,6 +348,7 @@ All commits follow the pattern observed in the repository history:
 ```
 
 Rules:
+
 - **All lowercase, no exceptions** — this includes file names that are
   conventionally uppercase (e.g. `README.md` is written `readme.md` in the
   commit message)
@@ -357,6 +358,7 @@ Rules:
 - No period at the end
 
 Examples:
+
 ```
 go.mod: init
 internal/game: add registry
