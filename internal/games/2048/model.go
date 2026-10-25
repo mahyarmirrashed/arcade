@@ -14,7 +14,7 @@ import (
 )
 
 // Compile-time check: Model must satisfy game.Game.
-var _ game.Game = (*Model)(nil)
+var _ game.Ranked = (*Model)(nil)
 
 // keyMap defines the 2048 keybindings.
 type keyMap struct {
@@ -52,12 +52,17 @@ type Model struct {
 	height int
 	rng    *rand.Rand
 	styles ui.Styles
+
+	standing *game.Standing // where the finished game placed, once known
 }
 
 // - game.Game implementation -
 
 func (m *Model) Name() string        { return "2048" }
 func (m *Model) Description() string { return "slide tiles, reach 2048" }
+
+// Ranking implements game.Ranked.
+func (m *Model) Ranking() game.Ranking { return game.ByScore }
 
 func (m *Model) New(width, height int, styles ui.Styles) tea.Model {
 	return newModel(width, height, styles)
@@ -95,6 +100,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if ws, ok := msg.(tea.WindowSizeMsg); ok {
 		m.width = ws.Width
 		m.height = ws.Height
+		return m, nil
+	}
+
+	if sm, ok := msg.(game.StandingMsg); ok {
+		if m.state != statePlaying {
+			s := sm.Standing
+			m.standing = &s
+		}
 		return m, nil
 	}
 
@@ -138,16 +151,22 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	if hasWon(m.g) {
 		m.state = stateWon
-		return m, nil
+		return m, m.finished()
 	}
 
 	m.g, _ = spawn(m.g, m.rng)
 
 	if !hasMovesLeft(m.g) {
 		m.state = stateLost
+		return m, m.finished()
 	}
 
 	return m, nil
+}
+
+// finished reports the ended game's score.
+func (m *Model) finished() tea.Cmd {
+	return game.Finished(m, game.Result{Score: m.score, Won: m.state == stateWon})
 }
 
 // - View -
@@ -242,9 +261,14 @@ func (m *Model) renderBoard() string {
 		}
 		w := lipgloss.Width(inner)
 		h := lipgloss.Height(inner)
+		overlay := m.styles.Error.Render(msg)
+		if m.standing != nil {
+			overlay = lipgloss.JoinVertical(lipgloss.Center,
+				overlay, "", m.styles.Muted.Render(m.standing.String()))
+		}
 		inner = lipgloss.Place(w, h,
 			lipgloss.Center, lipgloss.Center,
-			m.styles.Error.Render(msg),
+			overlay,
 			lipgloss.WithWhitespaceChars(" "),
 		)
 	}

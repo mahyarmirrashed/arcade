@@ -7,6 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/mahyarmirrashed/arcade/internal/game"
 	"github.com/mahyarmirrashed/arcade/internal/ui"
 )
 
@@ -383,5 +384,56 @@ func TestModel_growingBackShowsBoard(t *testing.T) {
 
 	if v := m.View(); strings.Contains(v, "terminal too small") || !strings.Contains(v, "2048") {
 		t.Errorf("80x24 view should show the game again:\n%s", v)
+	}
+}
+
+func TestModel_winReportsScore(t *testing.T) {
+	m := newTestModel()
+	m.g = grid{
+		{1024, 1024, 0, 0},
+		{0, 0, 0, 0},
+		{0, 0, 0, 0},
+		{0, 0, 0, 0},
+	}
+
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyLeft})
+
+	want := game.ResultMsg{Game: "2048", Ranking: game.ByScore, Result: game.Result{Score: 2048, Won: true}}
+	if cmd == nil || cmd() != want {
+		t.Errorf("cmd() = %v; want %#v", cmd, want)
+	}
+}
+
+func TestModel_lossReportsScore(t *testing.T) {
+	// Sliding left moves only the bottom row; the new tile lands in its last
+	// cell and leaves no move, whether it's a 2 or a 4.
+	m := newTestModel()
+	m.score = 300
+	m.g = grid{
+		{2, 4, 2, 4},
+		{4, 2, 4, 2},
+		{2, 4, 2, 8},
+		{0, 16, 32, 64},
+	}
+
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyLeft})
+
+	if m.state != stateLost {
+		t.Fatalf("state = %v; want stateLost", m.state)
+	}
+	want := game.ResultMsg{Game: "2048", Ranking: game.ByScore, Result: game.Result{Score: 300}}
+	if cmd == nil || cmd() != want {
+		t.Errorf("cmd() = %v; want %#v", cmd, want)
+	}
+}
+
+func TestModel_standingAppearsAtGameOver(t *testing.T) {
+	m := newTestModel()
+	m.state = stateLost
+
+	m.Update(game.StandingMsg{Standing: game.Standing{Ranked: true, Rank: 2, Of: 5}})
+
+	if v := m.View(); !strings.Contains(v, "#2/5") {
+		t.Errorf("game-over view doesn't show the standing:\n%s", v)
 	}
 }
