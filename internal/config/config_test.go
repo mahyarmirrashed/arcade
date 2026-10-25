@@ -8,14 +8,10 @@ import (
 )
 
 func TestParse_defaults(t *testing.T) {
-	// Reset flags between tests by re-invoking with no args.
-	// config.Parse calls flag.Parse internally; we test the defaults directly
-	// by inspecting the zero-arg behaviour via the exported struct values.
 	cfg := config.Config{
-		Addr:            ":2222",
-		HostKeyPath:     ".ssh/id_ed25519",
-		IdleTimeout:     30 * time.Minute,
-		ShutdownTimeout: 30 * time.Second,
+		Addr:        ":2222",
+		HostKeyPath: ".ssh/id_ed25519",
+		IdleTimeout: 30 * time.Minute,
 	}
 
 	if cfg.Addr != ":2222" {
@@ -27,8 +23,8 @@ func TestParse_defaults(t *testing.T) {
 	if cfg.IdleTimeout != 30*time.Minute {
 		t.Errorf("IdleTimeout = %v; want 30m", cfg.IdleTimeout)
 	}
-	if cfg.ShutdownTimeout != 30*time.Second {
-		t.Errorf("ShutdownTimeout = %v; want 30s", cfg.ShutdownTimeout)
+	if config.ShutdownTimeout != 30*time.Second {
+		t.Errorf("ShutdownTimeout = %v; want 30s", config.ShutdownTimeout)
 	}
 }
 

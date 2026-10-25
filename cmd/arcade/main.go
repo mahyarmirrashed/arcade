@@ -6,7 +6,6 @@
 //	--addr          address to listen on          (default 127.0.0.1:2222)
 //	--host-key      path to ed25519 host key      (default .ssh/id_ed25519)
 //	--idle-timeout  disconnect idle sessions       (default 30m, 0 = disabled)
-//	--shutdown-timeout  graceful shutdown window   (default 30s)
 //	--data-dir      where the leaderboard is kept  (default data)
 package main
 
@@ -84,9 +83,9 @@ func main() {
 	}()
 
 	<-done
-	log.Info("shutting down", "timeout", cfg.ShutdownTimeout)
+	log.Info("shutting down")
 
-	ctx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), config.ShutdownTimeout)
 	defer cancel()
 
 	if err := s.Shutdown(ctx); err != nil {

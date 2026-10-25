@@ -8,6 +8,11 @@ import (
 	"time"
 )
 
+// ShutdownTimeout is how long the server waits for active sessions to finish
+// after SIGINT/SIGTERM. Not configurable — 30s is the right value for any
+// deployment.
+const ShutdownTimeout = 30 * time.Second
+
 // Config holds the runtime configuration for an arcade server.
 type Config struct {
 	// Addr is the address the SSH server listens on (e.g. "127.0.0.1:2222").
@@ -20,10 +25,6 @@ type Config struct {
 	// IdleTimeout is the maximum duration a session may be idle before it is
 	// disconnected. Zero disables the timeout.
 	IdleTimeout time.Duration
-
-	// ShutdownTimeout is how long the server waits for active sessions to
-	// finish after a SIGINT/SIGTERM before forcefully closing them.
-	ShutdownTimeout time.Duration
 
 	// DataDir is where the arcade keeps its leaderboard.
 	DataDir string
@@ -50,8 +51,7 @@ func ParseArgs(args []string, defaultAddr, defaultHostKeyPath string) (Config, e
 	fs.StringVar(&cfg.Addr, "addr", defaultAddr, "address to listen on")
 	fs.StringVar(&cfg.HostKeyPath, "host-key", defaultHostKeyPath, "path to ed25519 host key")
 	fs.DurationVar(&cfg.IdleTimeout, "idle-timeout", 30*time.Minute, "disconnect idle sessions after this duration (0 = disabled)")
-	fs.DurationVar(&cfg.ShutdownTimeout, "shutdown-timeout", 30*time.Second, "graceful shutdown timeout")
-	fs.StringVar(&cfg.DataDir, "data-dir", "data", "directory for the leaderboard (cmd/arcade only)")
+	fs.StringVar(&cfg.DataDir, "data-dir", "data", "directory for the leaderboard")
 
 	err := fs.Parse(args)
 	return cfg, err
