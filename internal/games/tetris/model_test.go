@@ -431,3 +431,35 @@ func TestModel_levelIncreasesEvery10Lines(t *testing.T) {
 		t.Errorf("level = %d; want 2 after 10 lines", m.level)
 	}
 }
+
+func TestModel_ownTickAdvancesPiece(t *testing.T) {
+	m := newTestModel()
+	startRow := m.current.row
+
+	_, cmd := m.Update(tickMsg{owner: m})
+
+	if m.current.row != startRow+1 {
+		t.Errorf("row after tick = %d; want %d", m.current.row, startRow+1)
+	}
+	if cmd == nil {
+		t.Error("cmd = nil; want the next tick")
+	}
+}
+
+func TestModel_tickFromEarlierGameIgnored(t *testing.T) {
+	// Leaving Tetris and starting it again, or restarting after game over,
+	// creates a new Model while the old one's tick may still be in flight.
+	// Applying it would start a second gravity loop at double speed.
+	old := newTestModel()
+	m := newTestModel()
+	startRow := m.current.row
+
+	_, cmd := m.Update(tickMsg{owner: old})
+
+	if m.current.row != startRow {
+		t.Errorf("row = %d; want unchanged %d", m.current.row, startRow)
+	}
+	if cmd != nil {
+		t.Error("cmd != nil; another game's tick must not start a second loop")
+	}
+}

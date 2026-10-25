@@ -18,13 +18,15 @@ import (
 // Compile-time check: Model must satisfy game.Game.
 var _ game.Game = (*Model)(nil)
 
-// tickMsg is sent on every gravity tick.
-type tickMsg time.Time
+// tickMsg is sent on every gravity tick. owner ties it to the game that
+// scheduled it, so a tick left over from an earlier game is dropped instead
+// of starting a second gravity loop.
+type tickMsg struct{ owner *Model }
 
-// tickCmd returns a command that fires after the appropriate delay for level.
-func tickCmd(level int) tea.Cmd {
-	delay := time.Duration(max(50, 1000-level*100)) * time.Millisecond
-	return tea.Tick(delay, func(t time.Time) tea.Msg { return tickMsg(t) })
+// tickCmd returns a command that fires after the appropriate delay for m's level.
+func tickCmd(m *Model) tea.Cmd {
+	delay := time.Duration(max(50, 1000-m.level*100)) * time.Millisecond
+	return tea.Tick(delay, func(time.Time) tea.Msg { return tickMsg{owner: m} })
 }
 
 func max(a, b int) int {
@@ -133,7 +135,7 @@ func (m *Model) spawn() {
 // Init implements tea.Model.
 func (m *Model) Init() tea.Cmd {
 	m.started = true
-	return tickCmd(m.level)
+	return tickCmd(m)
 }
 
 // Update implements tea.Model.
@@ -155,8 +157,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 
 	case tickMsg:
+		if msg.owner != m {
+			return m, nil
+		}
 		m.gravity()
-		return m, tickCmd(m.level)
+		return m, tickCmd(m)
 
 	case tea.KeyMsg:
 		switch {
