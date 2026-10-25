@@ -338,7 +338,8 @@ func (b *broker) Play(code string, seat playerIndex, handIdx int, captureIdxs []
 }
 
 // Select sets the selected card highlight for seat.
-func (b *broker) Select(code string, seat playerIndex, handIdx *int) {
+// idx < 0 clears the selection.
+func (b *broker) Select(code string, seat playerIndex, idx int) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -346,17 +347,16 @@ func (b *broker) Select(code string, seat playerIndex, handIdx *int) {
 	if !ok || r.Phase != phasePlaying || r.Game.Turn != seat {
 		return
 	}
-	if handIdx != nil && (*handIdx >= len(r.Game.Hands[seat]) || *handIdx < 0) {
-		// Stale cursor - clear the selection rather than panic.
-		handIdx = nil
-	}
-	r.SelectedCard = handIdx
-	if handIdx != nil {
-		card := r.Game.Hands[seat][*handIdx]
-		r.CaptureOpts = captures(card, r.Game.Pool)
-	} else {
+	hand := r.Game.Hands[seat]
+	if idx < 0 || idx >= len(hand) {
+		// Out of range - clear selection.
+		r.SelectedCard = nil
 		r.CaptureOpts = nil
+		b.broadcast(r)
+		return
 	}
+	r.SelectedCard = &idx
+	r.CaptureOpts = captures(hand[idx], r.Game.Pool)
 	b.broadcast(r)
 }
 

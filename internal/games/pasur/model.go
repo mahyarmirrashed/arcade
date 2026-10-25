@@ -220,12 +220,12 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 			if m.handCursor > 0 {
 				m.handCursor--
 			}
-			Broker.Select(m.code, m.seat, &m.handCursor)
+			Broker.Select(m.code, m.seat, m.handCursor)
 		case key.Matches(msg, keys.right):
 			if m.handCursor < len(myHand)-1 {
 				m.handCursor++
 			}
-			Broker.Select(m.code, m.seat, &m.handCursor)
+			Broker.Select(m.code, m.seat, m.handCursor)
 		case key.Matches(msg, keys.pick):
 			return m.confirmPlay()
 		}
