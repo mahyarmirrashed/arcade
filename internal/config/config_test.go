@@ -38,3 +38,38 @@ func TestConfig_idleTimeoutZeroDisabled(t *testing.T) {
 		t.Errorf("expected zero IdleTimeout to represent disabled, got %v", cfg.IdleTimeout)
 	}
 }
+
+func TestParseArgs_dataDir(t *testing.T) {
+	tests := []struct {
+		args []string
+		want string
+	}{
+		{nil, "data"},
+		{[]string{"--data-dir", "/srv/arcade"}, "/srv/arcade"},
+	}
+	for _, tt := range tests {
+		cfg, err := config.ParseArgs(tt.args, "127.0.0.1:2222", ".ssh/id_ed25519")
+		if err != nil {
+			t.Fatalf("ParseArgs(%q): %v", tt.args, err)
+		}
+		if cfg.DataDir != tt.want {
+			t.Errorf("ParseArgs(%q).DataDir = %q; want %q", tt.args, cfg.DataDir, tt.want)
+		}
+	}
+}
+
+func TestParseArgs_defaultsComeFromTheCaller(t *testing.T) {
+	cfg, err := config.ParseArgs(nil, "127.0.0.1:2223", "keys/host")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Addr != "127.0.0.1:2223" || cfg.HostKeyPath != "keys/host" {
+		t.Errorf("Addr, HostKeyPath = %q, %q; want the caller's defaults", cfg.Addr, cfg.HostKeyPath)
+	}
+}
+
+func TestParseArgs_rejectsUnknownFlags(t *testing.T) {
+	if _, err := config.ParseArgs([]string{"--nope"}, "a", "b"); err == nil {
+		t.Error("ParseArgs accepted an unknown flag")
+	}
+}
