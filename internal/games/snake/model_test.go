@@ -69,7 +69,7 @@ func TestUpdate_tickAdvancesSnake(t *testing.T) {
 	m := newModel(80, 24, testRand())
 	head := m.board.body[0]
 
-	_, cmd := m.Update(tickMsg{gen: m.gen})
+	_, cmd := m.Update(tickMsg{owner: m, gen: m.gen})
 
 	if got, want := m.board.body[0], head.add(right.delta()); got != want {
 		t.Errorf("head = %v; want %v", got, want)
@@ -83,7 +83,7 @@ func TestUpdate_staleTickIgnored(t *testing.T) {
 	m := newModel(80, 24, testRand())
 	head := m.board.body[0]
 
-	_, cmd := m.Update(tickMsg{gen: m.gen - 1})
+	_, cmd := m.Update(tickMsg{owner: m, gen: m.gen - 1})
 
 	if got := m.board.body[0]; got != head {
 		t.Errorf("head = %v; want unchanged %v", got, head)
@@ -97,7 +97,7 @@ func TestUpdate_deathStopsTicking(t *testing.T) {
 	m := newModel(80, 24, testRand())
 	m.board = heading(m.board.cols, m.board.rows, right, point{m.board.cols - 1, 0})
 
-	_, cmd := m.Update(tickMsg{gen: m.gen})
+	_, cmd := m.Update(tickMsg{owner: m, gen: m.gen})
 
 	if m.board.alive {
 		t.Fatal("alive = true; want false after hitting the wall")
@@ -263,8 +263,8 @@ func TestUpdate_pause(t *testing.T) {
 			if cmd != nil {
 				t.Error("cmd != nil; want no tick while paused")
 			}
-			m.Update(tickMsg{gen: gen})
-			m.Update(tickMsg{gen: m.gen})
+			m.Update(tickMsg{owner: m, gen: gen})
+			m.Update(tickMsg{owner: m, gen: m.gen})
 			if got := m.board.body[0]; got != head {
 				t.Errorf("head = %v; want unchanged %v while paused", got, head)
 			}
@@ -323,5 +323,23 @@ func TestUpdate_resizeUnpauses(t *testing.T) {
 	}
 	if cmd == nil {
 		t.Error("cmd = nil; want a tick for the new game")
+	}
+}
+
+func TestUpdate_tickFromEarlierGameIgnored(t *testing.T) {
+	// In the arcade, leaving Snake and starting it again creates a new Model
+	// while the old one's tick may still be in flight. Both start at the same
+	// generation, so only the owner tells them apart.
+	old := newModel(80, 24, testRand())
+	m := newModel(80, 24, testRand())
+	head := m.board.body[0]
+
+	_, cmd := m.Update(tickMsg{owner: old, gen: old.gen})
+
+	if got := m.board.body[0]; got != head {
+		t.Errorf("head = %v; want unchanged %v", got, head)
+	}
+	if cmd != nil {
+		t.Error("cmd != nil; another game's tick must not start a second chain")
 	}
 }

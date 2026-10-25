@@ -35,9 +35,13 @@ func gridSize(termW, termH int) (cols, rows int, ok bool) {
 	return cols, rows, cols >= minCols && rows >= minRows
 }
 
-// tickMsg advances the game one step. gen ties it to the game that scheduled
-// it, so ticks left over from before a reset are dropped.
-type tickMsg struct{ gen int }
+// tickMsg advances the game one step. owner and gen tie it to the game that
+// scheduled it, so ticks left over from an earlier session or from before a
+// reset are dropped instead of running a second tick chain.
+type tickMsg struct {
+	owner *Model
+	gen   int
+}
 
 // Model is the Bubbletea model for Snake.
 type Model struct {
@@ -83,9 +87,9 @@ func (m *Model) tick() tea.Cmd {
 	if !m.playing() || m.paused {
 		return nil
 	}
-	gen := m.gen
+	msg := tickMsg{owner: m, gen: m.gen}
 	return tea.Tick(interval(m.board.score), func(time.Time) tea.Msg {
-		return tickMsg{gen: gen}
+		return msg
 	})
 }
 
@@ -121,7 +125,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.resize(msg.Width, msg.Height)
 		return m, m.tick()
 	case tickMsg:
-		if msg.gen != m.gen || !m.playing() || m.paused {
+		if msg.owner != m || msg.gen != m.gen || !m.playing() || m.paused {
 			return m, nil
 		}
 		m.board.step(m.rng)
