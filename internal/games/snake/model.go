@@ -78,8 +78,8 @@ func (m *Model) hasGame() bool { return len(m.board.body) > 0 }
 // boardFits reports whether the current board, with the panels around it,
 // fits in the terminal.
 func (m *Model) boardFits() bool {
-	return m.width >= m.board.cols*cellWidth+chromeWidth() &&
-		m.height >= m.board.rows+titleH+borderH
+	w, h := m.requiredSize()
+	return m.width >= w && m.height >= h
 }
 
 func (m *Model) playing() bool {
