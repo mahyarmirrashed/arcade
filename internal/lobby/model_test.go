@@ -11,6 +11,7 @@ import (
 	"github.com/muesli/termenv"
 
 	"github.com/mahyarmirrashed/arcade/internal/game"
+	"github.com/mahyarmirrashed/arcade/internal/leaderboard"
 	"github.com/mahyarmirrashed/arcade/internal/lobby"
 	"github.com/mahyarmirrashed/arcade/internal/ui"
 )
@@ -24,7 +25,7 @@ func (s stubGame) New(_, _ int, _ ui.Styles) tea.Model         { return nil }
 
 func newTestModel(games ...game.Game) lobby.Model {
 	reg := game.NewRegistry(games...)
-	return lobby.New(80, 24, reg, testStyles())
+	return lobby.New(80, 24, reg, testStyles(), leaderboard.Session{})
 }
 
 // testStyles renders without colour, as a terminal with no colour support would.
@@ -122,8 +123,8 @@ func TestView_rendersWithSessionStyles(t *testing.T) {
 	r.SetColorProfile(termenv.ANSI256)
 	reg := game.NewRegistry(stubGame{name: "Alpha"}, stubGame{name: "Beta"})
 
-	colour := lobby.New(80, 24, reg, ui.NewStyles(r)).View()
-	plain := lobby.New(80, 24, reg, testStyles()).View()
+	colour := lobby.New(80, 24, reg, ui.NewStyles(r), leaderboard.Session{}).View()
+	plain := lobby.New(80, 24, reg, testStyles(), leaderboard.Session{}).View()
 
 	if !strings.Contains(colour, "\x1b[") {
 		t.Error("256-colour session rendered no colour codes")

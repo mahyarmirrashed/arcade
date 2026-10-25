@@ -28,6 +28,7 @@ import (
 	"github.com/mahyarmirrashed/arcade/internal/games/solitaire"
 	"github.com/mahyarmirrashed/arcade/internal/games/tetris"
 	"github.com/mahyarmirrashed/arcade/internal/games/wordle"
+	"github.com/mahyarmirrashed/arcade/internal/leaderboard"
 	"github.com/mahyarmirrashed/arcade/internal/root"
 	"github.com/mahyarmirrashed/arcade/internal/server"
 	"github.com/mahyarmirrashed/arcade/internal/ui"
@@ -88,7 +89,7 @@ func handler(reg *game.Registry) func(ssh.Session) (tea.Model, []tea.ProgramOpti
 		// Styles come from the session's renderer so colours match the
 		// player's terminal, not the server's.
 		styles := ui.NewStyles(server.Renderer(sess))
-		m := root.New(pty.Window.Width, pty.Window.Height, reg, styles)
+		m := root.New(pty.Window.Width, pty.Window.Height, reg, styles, leaderboard.Session{})
 		return m, []tea.ProgramOption{tea.WithAltScreen()}
 	}
 }

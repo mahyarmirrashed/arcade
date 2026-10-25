@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/mahyarmirrashed/arcade/internal/game"
+	"github.com/mahyarmirrashed/arcade/internal/leaderboard"
 	"github.com/mahyarmirrashed/arcade/internal/ui"
 )
 
@@ -84,11 +85,13 @@ type Model struct {
 	width  int
 	height int
 	styles ui.Styles
+	lb     leaderboard.Session
 }
 
 // New returns an initialised lobby Model sized to the given terminal
-// dimensions, rendering with the session's styles.
-func New(width, height int, reg *game.Registry, styles ui.Styles) Model {
+// dimensions, rendering with the session's styles. lb is the player's
+// leaderboard session.
+func New(width, height int, reg *game.Registry, styles ui.Styles, lb leaderboard.Session) Model {
 	games := reg.All()
 	items := make([]list.Item, len(games))
 	for i, g := range games {
@@ -107,7 +110,7 @@ func New(width, height int, reg *game.Registry, styles ui.Styles) Model {
 	l.KeyMap.PrevPage.SetKeys("pgup")
 	l.KeyMap.NextPage.SetKeys("pgdown")
 
-	return Model{list: l, games: games, width: width, height: height, styles: styles}
+	return Model{list: l, games: games, width: width, height: height, styles: styles, lb: lb}
 }
 
 // Index returns the currently selected list index (used in tests).

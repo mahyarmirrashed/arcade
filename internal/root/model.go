@@ -3,9 +3,16 @@
 package root
 
 import (
+	"strings"
+
+	"github.com/charmbracelet/bubbles/cursor"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/log"
 
 	"github.com/mahyarmirrashed/arcade/internal/game"
+	"github.com/mahyarmirrashed/arcade/internal/leaderboard"
 	"github.com/mahyarmirrashed/arcade/internal/lobby"
 	"github.com/mahyarmirrashed/arcade/internal/ui"
 )
@@ -13,8 +20,9 @@ import (
 type state int
 
 const (
-	stateLobby   state = iota
-	statePlaying state = iota
+	stateLobby state = iota
+	statePlaying
+	stateName // choosing a leaderboard name, before the lobby
 )
 
 // Model is the root Bubbletea model. It holds either the lobby or an active
@@ -26,18 +34,44 @@ type Model struct {
 	lobby  lobby.Model
 	active tea.Model // non-nil only while statePlaying
 	styles ui.Styles
+	lb     leaderboard.Session
+
+	name    textinput.Model // the name prompt, while stateName
+	nameErr string          // why the last name was refused
 }
 
 // New returns an initialised root Model. styles render for the session's
-// terminal and are handed to the lobby and to every game started from it.
-func New(width, height int, reg *game.Registry, styles ui.Styles) Model {
-	return Model{
+// terminal and are handed to the lobby and to every game started from it. lb
+// is the player's leaderboard session; a player with a key but no name is
+// asked for one before the lobby.
+func New(width, height int, reg *game.Registry, styles ui.Styles, lb leaderboard.Session) Model {
+	m := Model{
 		state:  stateLobby,
 		width:  width,
 		height: height,
-		lobby:  lobby.New(width, height, reg, styles),
+		lobby:  lobby.New(width, height, reg, styles, lb),
 		styles: styles,
+		lb:     lb,
 	}
+	if lb.NeedsName() {
+		m.state = stateName
+		m.name = newNameInput(styles)
+	}
+	return m
+}
+
+func newNameInput(styles ui.Styles) textinput.Model {
+	ti := textinput.New()
+	ti.Placeholder = "your name"
+	ti.CharLimit = 12
+	ti.PromptStyle = styles.Muted
+	ti.TextStyle = styles.Accent
+	ti.PlaceholderStyle = styles.Muted
+	ti.Cursor.Style = styles.NewStyle()
+	ti.Cursor.TextStyle = styles.NewStyle()
+	ti.Cursor.SetMode(cursor.CursorStatic)
+	ti.Focus()
+	return ti
 }
 
 // Init implements tea.Model.
@@ -62,7 +96,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // update forwards msg to whichever screen is active.
 func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Results are recorded whatever the state: a game can finish in the same
+	// instant the player quits, so its result may arrive in the lobby.
+	if res, ok := msg.(game.ResultMsg); ok {
+		return m, m.record(res)
+	}
+
 	switch m.state {
+	case stateName:
+		return m.updateName(msg)
 	case stateLobby:
 		return m.updateLobby(msg)
 	case statePlaying:
@@ -115,6 +157,8 @@ func (m Model) updatePlaying(msg tea.Msg) (tea.Model, tea.Cmd) {
 // View implements tea.Model.
 func (m Model) View() string {
 	switch m.state {
+	case stateName:
+		return m.viewName()
 	case statePlaying:
 		return m.active.View()
 	default:
@@ -125,8 +169,72 @@ func (m Model) View() string {
 // State returns the current state (exported for tests).
 func (m Model) State() state { return m.state }
 
-// StateLobby and StatePlaying are the exported state constants for tests.
+// StateLobby, StatePlaying and StateName are the exported state constants
+// for tests.
 const (
 	StateLobby   = stateLobby
 	StatePlaying = statePlaying
+	StateName    = stateName
 )
+
+// record saves a finished game's result and, if the player is still in the
+// game, tells it where the result placed.
+func (m Model) record(res game.ResultMsg) tea.Cmd {
+	standing, err := m.lb.Record(res.Game, res.Ranking, res.Result)
+	if err != nil {
+		// The result is kept in memory and saved with the next change.
+		log.Error("saving leaderboard", "error", err)
+	}
+	if m.state != statePlaying {
+		return nil
+	}
+	return func() tea.Msg { return game.StandingMsg{Standing: standing} }
+}
+
+func (m Model) updateName(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if km, ok := msg.(tea.KeyMsg); ok {
+		// Every other key, q included, is typing.
+		switch km.Type {
+		case tea.KeyCtrlC:
+			return m, tea.Quit
+		case tea.KeyEsc:
+			// Skip for now: play unranked and be asked again next time.
+			m.state = stateLobby
+			return m, nil
+		case tea.KeyEnter:
+			if err := m.lb.SetName(strings.TrimSpace(m.name.Value())); err != nil {
+				m.nameErr = err.Error()
+				return m, nil
+			}
+			m.state = stateLobby
+			return m, nil
+		}
+		m.nameErr = ""
+	}
+
+	var cmd tea.Cmd
+	m.name, cmd = m.name.Update(msg)
+	return m, cmd
+}
+
+func (m Model) viewName() string {
+	hint := m.styles.Muted.Render("this is how you'll appear on the leaderboards")
+	if m.nameErr != "" {
+		hint = m.styles.Error.Render(" " + m.nameErr + " ")
+	}
+	content := lipgloss.JoinVertical(lipgloss.Left,
+		m.styles.Title.Render("arcade"),
+		"",
+		m.styles.Subtitle.Render("choose a name"),
+		"",
+		m.name.View(),
+		"",
+		hint,
+		"",
+		m.styles.Muted.Render("enter  save   esc  skip (play unranked)"),
+	)
+	if w, h := lipgloss.Size(content); w > m.width || h > m.height {
+		return m.styles.TooSmall(m.width, m.height, w, h)
+	}
+	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, content)
+}
