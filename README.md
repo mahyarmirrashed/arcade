@@ -24,10 +24,11 @@ Both binaries accept the following flags:
 
 ## Terminal requirements
 
-- Minimum size: **80×24**
-- **Do not resize your terminal during gameplay.** The layout is fixed to the
-  dimensions at connection time. Resizing mid-game will cause the board to
-  reflow and may corrupt the display.
+- Recommended size: **80×24** or larger.
+- Resizing is supported at any time. If the terminal becomes too small for the
+  current screen, it shows the size it needs and the game pauses: Snake waits
+  for `p` once it fits again, Tetris carries on by itself. A new Snake game
+  sizes its board to the terminal.
 
 ## Controls
 
