@@ -203,9 +203,7 @@ func (m Model) View() string {
 		help,
 	)
 
-	if panel := m.leaderboard(); panel != "" {
-		content = lipgloss.JoinHorizontal(lipgloss.Top, content, "    ", panel)
-	}
+	content = lipgloss.JoinHorizontal(lipgloss.Top, content, "    ", m.leaderboard())
 
 	// Show a notice rather than letting Bubble Tea clip the lobby.
 	if w, h := lipgloss.Size(content); w > m.width || h > m.height {
@@ -222,12 +220,20 @@ func (m Model) View() string {
 // topN is how many players the lobby lists for each game.
 const topN = 10
 
-// leaderboard renders the highlighted game's best players and where this
-// player stands, or "" if there is no leaderboard or the game isn't ranked.
+// leaderboardW is the fixed width of the leaderboard panel in terminal columns.
+// Keeps the lobby layout stable as the user navigates between ranked and
+// unranked games.
+const leaderboardW = 26
+
+// leaderboard always returns a fixed-width panel. For ranked games with a
+// leaderboard it shows the top scores; for everything else it shows a blank
+// placeholder of the same width so the layout does not shift.
 func (m Model) leaderboard() string {
+	fixed := lipgloss.NewStyle().Width(leaderboardW)
+
 	g, ok := m.selectedGame().(game.Ranked)
 	if !ok || !m.lb.Enabled() {
-		return ""
+		return fixed.Render("")
 	}
 	id, r := game.ID(g), g.Ranking()
 
@@ -246,7 +252,7 @@ func (m Model) leaderboard() string {
 		lines = append(lines, row)
 	}
 	lines = append(lines, "", m.standing(id, r))
-	return lipgloss.JoinVertical(lipgloss.Left, lines...)
+	return fixed.Render(lipgloss.JoinVertical(lipgloss.Left, lines...))
 }
 
 // standing says where the player stands on a game's board, or how to get on
