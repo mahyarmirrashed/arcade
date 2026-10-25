@@ -1,6 +1,7 @@
 package root_test
 
 import (
+	"fmt"
 	"io"
 	"testing"
 
@@ -86,5 +87,48 @@ func TestRoot_windowResizeTracked(t *testing.T) {
 	m = update(m, lobby.SelectMsg{Game: stubGame{name: "Stub"}})
 	if m.State() != root.StatePlaying {
 		t.Error("expected playing state")
+	}
+}
+
+// msgsOf runs cmd and any commands it batches, returning their messages.
+func msgsOf(cmd tea.Cmd) []tea.Msg {
+	if cmd == nil {
+		return nil
+	}
+	msg := cmd()
+	if batch, ok := msg.(tea.BatchMsg); ok {
+		var msgs []tea.Msg
+		for _, c := range batch {
+			msgs = append(msgs, msgsOf(c)...)
+		}
+		return msgs
+	}
+	return []tea.Msg{msg}
+}
+
+func clearsScreen(cmd tea.Cmd) bool {
+	want := fmt.Sprintf("%T", tea.ClearScreen())
+	for _, msg := range msgsOf(cmd) {
+		if fmt.Sprintf("%T", msg) == want {
+			return true
+		}
+	}
+	return false
+}
+
+func TestRoot_resizeClearsScreen(t *testing.T) {
+	// Bubble Tea redraws on resize but doesn't clear, so remnants of the old
+	// layout can stay on screen.
+	lobbyRoot := newTestRoot()
+	playingRoot := update(newTestRoot(), lobby.SelectMsg{Game: stubGame{name: "Stub"}})
+
+	for name, m := range map[string]root.Model{"lobby": lobbyRoot, "playing": playingRoot} {
+		t.Run(name, func(t *testing.T) {
+			_, cmd := m.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
+
+			if !clearsScreen(cmd) {
+				t.Error("resize did not clear the screen")
+			}
+		})
 	}
 }

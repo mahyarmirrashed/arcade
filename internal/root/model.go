@@ -51,8 +51,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if ws, ok := msg.(tea.WindowSizeMsg); ok {
 		m.width = ws.Width
 		m.height = ws.Height
-	}
 
+		// Bubble Tea redraws on resize but doesn't clear, so remnants of the
+		// old layout could stay on screen.
+		next, cmd := m.update(msg)
+		return next, tea.Batch(tea.ClearScreen, cmd)
+	}
+	return m.update(msg)
+}
+
+// update forwards msg to whichever screen is active.
+func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch m.state {
 	case stateLobby:
 		return m.updateLobby(msg)
