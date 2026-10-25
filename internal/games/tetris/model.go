@@ -15,8 +15,8 @@ import (
 	"github.com/mahyarmirrashed/arcade/internal/ui"
 )
 
-// Compile-time check: Model must satisfy game.Game.
-var _ game.Game = (*Model)(nil)
+// Compile-time check: Model must be a ranked game.
+var _ game.Ranked = (*Model)(nil)
 
 // tickMsg is sent on every gravity tick. owner ties it to the game that
 // scheduled it, so a tick left over from an earlier game is dropped instead
@@ -87,6 +87,7 @@ type Model struct {
 	height    int
 	rng       *rand.Rand
 	styles    ui.Styles
+	standing  *game.Standing // where the finished game placed, once known
 }
 
 // - game.Game implementation -
@@ -96,6 +97,9 @@ func (m *Model) Name() string { return "Tetris" }
 
 // Description implements game.Game.
 func (m *Model) Description() string { return "clear lines, survive gravity" }
+
+// Ranking implements game.Ranked.
+func (m *Model) Ranking() game.Ranking { return game.ByScore }
 
 // New implements game.Game - returns a fresh model for a new session.
 func (m *Model) New(width, height int, styles ui.Styles) tea.Model {
@@ -151,12 +155,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if !m.alive {
-		if km, ok := msg.(tea.KeyMsg); ok {
-			switch km.String() {
-			case "r":
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			if msg.String() == "r" {
 				fresh := newModel(m.width, m.height, m.styles)
 				return fresh, fresh.Init()
 			}
+		case game.StandingMsg:
+			s := msg.Standing
+			m.standing = &s
 		}
 		return m, nil
 	}
@@ -171,6 +178,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// fits again.
 		if m.fits() {
 			m.gravity()
+		}
+		if !m.alive {
+			return m, m.finished()
 		}
 		return m, tickCmd(m)
 
@@ -194,9 +204,17 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, keys.hold):
 			m.holdPiece()
 		}
+		if !m.alive {
+			return m, m.finished()
+		}
 	}
 
 	return m, nil
+}
+
+// finished reports the ended game's score.
+func (m *Model) finished() tea.Cmd {
+	return game.Finished(m, game.Result{Score: m.score})
 }
 
 // gravity advances the current piece one row. If it can't move, it locks.
@@ -414,6 +432,10 @@ func (m *Model) renderBoard() string {
 		// Each cell is 2 chars wide; board inner width = boardCols*2.
 		innerW := boardCols * 2
 		overlay := m.styles.Error.Render(" game over ")
+		if m.standing != nil {
+			overlay = lipgloss.JoinVertical(lipgloss.Center,
+				overlay, "", m.styles.Muted.Render(m.standing.String()))
+		}
 		inner = lipgloss.Place(innerW, boardRows,
 			lipgloss.Center, lipgloss.Center,
 			overlay,

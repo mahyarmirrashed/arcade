@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
 
+	"github.com/mahyarmirrashed/arcade/internal/game"
 	"github.com/mahyarmirrashed/arcade/internal/ui"
 )
 
@@ -550,5 +551,59 @@ func TestModel_resizeAfterGameOverIsTracked(t *testing.T) {
 
 	if m.width != 100 || m.height != 30 {
 		t.Errorf("size = %dx%d; want 100x30", m.width, m.height)
+	}
+}
+
+// fillBelowSpawn fills every row but the top, leaving column 0 empty so no
+// line clears. The current piece locks where it spawned and the next one has
+// nowhere to go.
+func fillBelowSpawn(m *Model) {
+	for r := 1; r < boardRows; r++ {
+		for c := 1; c < boardCols; c++ {
+			m.board[r][c] = cell{filled: true, pieceType: PieceJ}
+		}
+	}
+}
+
+func TestModel_gameOverReportsScore(t *testing.T) {
+	for name, msg := range map[string]tea.Msg{
+		"gravity":   nil, // filled in below; needs the model
+		"hard drop": tea.KeyMsg{Type: tea.KeySpace, Runes: []rune(" ")},
+	} {
+		t.Run(name, func(t *testing.T) {
+			m := newTestModel()
+			m.score = 1200
+			fillBelowSpawn(m)
+			if msg == nil {
+				msg = tickMsg{owner: m}
+			}
+
+			_, cmd := m.Update(msg)
+
+			if m.alive {
+				t.Fatal("alive = true; want game over")
+			}
+			// Run cmd once: a tick command fires only once and would block a
+			// second call.
+			var got tea.Msg
+			if cmd != nil {
+				got = cmd()
+			}
+			want := game.ResultMsg{Game: "tetris", Ranking: game.ByScore, Result: game.Result{Score: 1200}}
+			if got != want {
+				t.Errorf("cmd() = %#v; want %#v", got, want)
+			}
+		})
+	}
+}
+
+func TestModel_standingAppearsAtGameOver(t *testing.T) {
+	m := newTestModel()
+	m.alive = false
+
+	m.Update(game.StandingMsg{Standing: game.Standing{Ranked: true, Rank: 2, Of: 5}})
+
+	if v := m.View(); !strings.Contains(v, "#2/5") {
+		t.Errorf("game-over view doesn't show the standing:\n%s", v)
 	}
 }
