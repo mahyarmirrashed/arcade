@@ -383,6 +383,76 @@ readme.md: add setup instructions
 
 ---
 
+## UI & Styling Conventions
+
+These conventions are established in the Tetris implementation and **must be
+followed by all game implementations** (including Snake) before merging into
+`main`.
+
+### Palette — `internal/ui/style.go`
+
+Do not define colours inline in game packages. Use only the shared variables:
+
+| Variable | ANSI | Usage |
+|----------|------|-------|
+| `ui.ColorText` | 255 (bright white) | primary text, selected state |
+| `ui.ColorSubtle` | 245 (light grey) | secondary labels |
+| `ui.ColorMuted` | 238 (dark grey) | de-emphasised text, borders, help |
+| `ui.ColorInverse` | 0 (black) | selected item background |
+
+### Shared styles
+
+| Variable | Usage |
+|----------|-------|
+| `ui.Title` | Game name heading — bold, `ColorText` |
+| `ui.Subtitle` | Section labels (score, level, next, hold) — `ColorSubtle` |
+| `ui.Muted` | Help text, empty state — `ColorMuted` |
+| `ui.Accent` | Highlighted values — bold, `ColorText` |
+| `ui.Error` | Game-over message — bold, reversed |
+| `ui.Border` | Content border — `NormalBorder`, `ColorMuted` |
+
+### Game layout structure
+
+Every game `View()` must follow this pattern:
+
+```
+┌──────────────┬──────────────────────┬─────────────┐
+│              │                      │             │
+│  help text   │  title               │  side panel │
+│  (bottom     │  (above board)       │  (bottom    │
+│   aligned)   │                      │   aligned)  │
+│              │  ┌──────────────┐    │             │
+│              │  │              │    │             │
+│              │  │    board     │    │             │
+│              │  │              │    │             │
+│              │  └──────────────┘    │             │
+└──────────────┴──────────────────────┴─────────────┘
+```
+
+- `JoinHorizontal(lipgloss.Bottom, help, "  ", boardWithTitle, "  ", side)`
+- Title rendered with `ui.Title` above the board using `JoinVertical`
+- Help and side panels padded `PaddingBottom(1)` to align with the board's
+  inner content (the border adds 1 row top and bottom)
+- All multi-line content built with `lipgloss.JoinVertical` — no raw `\n`
+  concatenation
+
+### Quit handling
+
+Games must **not** call `tea.Quit` or handle `q`/`ctrl+c` themselves.
+The root model (`internal/root`) intercepts those keys and returns the player
+to the lobby. Games only need to handle their own game-over state.
+
+### Game name casing
+
+Game names are lowercase everywhere — in `Name()`, titles, commit messages,
+and display strings. `"tetris"`, `"snake"`, not `"Tetris"`, `"Snake"`.
+
+> Exception: `Name()` returns the display name used in the lobby list. It may
+> be capitalised there if desired (e.g. `"Snake"`), but the `ui.Title.Render`
+> call in `View()` should always use lowercase.
+
+---
+
 ## Key Idiomatic Go Decisions
 
 | Decision                                                                | Rationale                                                 |
