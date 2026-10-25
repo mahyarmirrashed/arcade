@@ -2,6 +2,7 @@
 package server
 
 import (
+	"slices"
 	"time"
 
 	"golang.org/x/time/rate"
@@ -34,5 +35,5 @@ func New(handler bubbletea.Handler, opts ...ssh.Option) (*ssh.Server, error) {
 		logging.Middleware(),
 	)
 
-	return wish.NewServer(append(opts, middleware)...)
+	return wish.NewServer(slices.Concat(identify, opts, []ssh.Option{middleware})...)
 }
