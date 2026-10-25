@@ -1,9 +1,12 @@
 package snake
 
 import (
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/mahyarmirrashed/arcade/internal/game"
 )
 
 func runeKey(s string) tea.KeyMsg {
@@ -67,17 +70,49 @@ func TestUpdate_staleTickIgnored(t *testing.T) {
 	}
 }
 
-func TestUpdate_deathStopsTicking(t *testing.T) {
+func TestUpdate_deathStopsTickingAndReportsScore(t *testing.T) {
 	m := newModel(80, 24, testRand(), testStyles())
 	m.board = heading(m.board.cols, m.board.rows, right, point{m.board.cols - 1, 0})
+	m.board.score = 7
 
 	_, cmd := m.Update(tickMsg{owner: m, gen: m.gen})
 
 	if m.board.alive {
 		t.Fatal("alive = true; want false after hitting the wall")
 	}
-	if cmd != nil {
-		t.Error("cmd != nil; want ticking to stop on death")
+	if cmd == nil {
+		t.Fatal("cmd = nil; want the result reported")
+	}
+	want := game.ResultMsg{Game: "snake", Ranking: game.ByScore, Result: game.Result{Score: 7}}
+	if msg := cmd(); msg != want {
+		t.Errorf("cmd() = %#v; want %#v and no further tick", msg, want)
+	}
+}
+
+func TestUpdate_fillingTheBoardReportsAWin(t *testing.T) {
+	m := newModel(80, 24, testRand(), testStyles())
+	m.board = heading(2, 2, left, point{1, 1}, point{1, 0}, point{0, 0})
+	m.board.food = point{0, 1}
+
+	_, cmd := m.Update(tickMsg{owner: m, gen: m.gen})
+
+	if msg, ok := cmd().(game.ResultMsg); !ok || !msg.Result.Won || msg.Result.Score != 1 {
+		t.Errorf("cmd() = %#v; want a won result with score 1", cmd())
+	}
+}
+
+func TestUpdate_standingAppearsAtGameOver(t *testing.T) {
+	m := newModel(80, 24, testRand(), testStyles())
+	m.board.alive = false
+
+	m.Update(game.StandingMsg{Standing: game.Standing{Ranked: true, NewBest: true, Rank: 1, Of: 3}})
+
+	if v := m.View(); !strings.Contains(v, "new best! #1/3") {
+		t.Errorf("game-over view doesn't show the standing:\n%s", v)
+	}
+	m.Update(runeKey("r"))
+	if m.standing != nil {
+		t.Error("standing kept after restart; want it cleared for the new game")
 	}
 }
 

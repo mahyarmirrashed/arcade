@@ -106,17 +106,24 @@ func (m *Model) renderSide() string {
 	)
 }
 
-// status is the message shown over the board, if any.
+// status is the message shown over the board, if any. A finished game also
+// shows where it placed on the leaderboard once that's known.
 func (m *Model) status() string {
+	var msg string
 	switch {
 	case m.board.won:
-		return m.styles.Accent.Render("you win")
+		msg = m.styles.Accent.Render("you win")
 	case !m.board.alive:
-		return m.styles.Error.Render(" game over ")
+		msg = m.styles.Error.Render(" game over ")
 	case m.paused:
 		return m.styles.Subtitle.Render("paused")
+	default:
+		return ""
 	}
-	return ""
+	if m.standing == nil {
+		return msg
+	}
+	return lipgloss.JoinVertical(lipgloss.Center, msg, "", m.styles.Muted.Render(m.standing.String()))
 }
 
 // renderBoard draws the grid inside the border, or the status message in its

@@ -11,8 +11,8 @@ import (
 	"github.com/mahyarmirrashed/arcade/internal/ui"
 )
 
-// Compile-time check: Model must satisfy game.Game.
-var _ game.Game = (*Model)(nil)
+// Compile-time check: Model must be a ranked game.
+var _ game.Ranked = (*Model)(nil)
 
 // tickMsg advances the game one step. owner and gen tie it to the game that
 // scheduled it, so ticks left over from an earlier session or from before a
@@ -32,6 +32,7 @@ type Model struct {
 	tooSmall bool
 	paused   bool
 	styles   ui.Styles
+	standing *game.Standing // where the finished game placed, once known
 }
 
 // newModel returns a game sized to the terminal, drawing food positions from
@@ -65,6 +66,7 @@ func (m *Model) resize(width, height int) tea.Cmd {
 func (m *Model) reset() {
 	m.gen++
 	m.paused = false
+	m.standing = nil
 	m.tooSmall = !m.boardFits()
 	m.board = board{}
 	if !m.tooSmall {
@@ -104,6 +106,9 @@ func (m *Model) Name() string { return "Snake" }
 // Description implements game.Game.
 func (m *Model) Description() string { return "eat, grow, don't bite yourself" }
 
+// Ranking implements game.Ranked.
+func (m *Model) Ranking() game.Ranking { return game.ByScore }
+
 // MinSize implements game.SizeConstraint.
 func (m *Model) MinSize() (int, int) {
 	return boardCols*cellWidth + chromeWidth(), boardRows + titleH + borderH
@@ -132,7 +137,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.board.step(m.rng)
+		if !m.board.alive || m.board.won {
+			return m, game.Finished(m, game.Result{Score: m.board.score, Won: m.board.won})
+		}
 		return m, m.tick()
+	case game.StandingMsg:
+		if !m.playing() {
+			s := msg.Standing
+			m.standing = &s
+		}
 	case tea.KeyMsg:
 		return m, m.handleKey(msg)
 	}
