@@ -171,36 +171,25 @@ func (m *Model) place(num int) tea.Cmd {
 // - View -
 
 // Box-drawing characters for the grid.
-// Thin lines within boxes, thick lines between boxes.
+// All lines use the same weight; box boundaries are distinguished by colour.
 const (
-	// Horizontal segments.
-	thinH  = "───"
-	thickH = "━━━"
+	segH = "───" // horizontal segment (3 chars wide to match cell width)
+	segV = "│"   // vertical segment
 
-	// Vertical segments.
-	thinV  = "│"
-	thickV = "┃"
+	// Corners.
+	cTL = "┌"
+	cTR = "┐"
+	cBL = "└"
+	cBR = "┘"
 
-	// Intersections: named by surrounding line weights (thin=t, thick=T).
-	// Top row junctions.
-	cornerTL  = "┏" // thick-thick
-	cornerTR  = "┓"
-	topT      = "┳" // thick top, thick sides
-	// Middle row junctions (between box rows).
-	leftT     = "┣"
-	rightT    = "┫"
-	crossTT   = "╋" // thick cross
-	// Within-box row junctions.
-	leftThin  = "┠"
-	rightThin = "┨"
-	topThin   = "┯"
-	botThin   = "┷"
-	crossTt   = "┼" // thin cross (within box)
-	crossTtV  = "╂" // thick vertical, thin horizontal
-	// Bottom row junctions.
-	cornerBL  = "┗"
-	cornerBR  = "┛"
-	botT      = "┻"
+	// T-junctions.
+	jTop   = "┬"
+	jBot   = "┴"
+	jLeft  = "├"
+	jRight = "┤"
+
+	// Cross.
+	jCross = "┼"
 )
 
 func (m *Model) View() string {
@@ -283,27 +272,20 @@ func (m *Model) cellStyle(r, c int) lipgloss.Style {
 	}
 }
 
-// vertStyle returns the vertical bar style at column boundary c.
-// c=0,3,6,9 are thick (box boundaries); others are thin.
-func (m *Model) vertStyle() lipgloss.Style {
-	return m.styles.NewStyle().Foreground(ui.ColorSubtle)
-}
-
-func (m *Model) thickVertStyle() lipgloss.Style {
-	return m.styles.NewStyle().Foreground(ui.ColorText)
+// borderSt returns the style for a border element.
+// boxEdge=true for outer edges and box-boundary lines (brighter).
+func (m *Model) borderSt(boxEdge bool) lipgloss.Style {
+	if boxEdge {
+		return m.styles.NewStyle().Foreground(ui.ColorSubtle)
+	}
+	return m.styles.NewStyle().Foreground(ui.ColorMuted)
 }
 
 func (m *Model) dataRow(r int) string {
 	var sb strings.Builder
 	for c := 0; c < size; c++ {
-		// Left border / separator.
-		if c == 0 {
-			sb.WriteString(m.thickVertStyle().Render(thickV))
-		} else if c%3 == 0 {
-			sb.WriteString(m.thickVertStyle().Render(thickV))
-		} else {
-			sb.WriteString(m.vertStyle().Render(thinV))
-		}
+		boxEdge := c%3 == 0
+		sb.WriteString(m.borderSt(boxEdge).Render(segV))
 
 		val := m.current[r][c]
 		st := m.cellStyle(r, c)
@@ -315,50 +297,50 @@ func (m *Model) dataRow(r int) string {
 			sb.WriteString(st.Render(string(rune('0' + val))))
 		}
 	}
-	sb.WriteString(m.thickVertStyle().Render(thickV))
+	sb.WriteString(m.borderSt(true).Render(segV))
 	return sb.String()
 }
 
-func (m *Model) topBorder() string {
-	return m.hBorder(cornerTL, topT, cornerTR, thickH, topThin)
-}
-
-func (m *Model) bottomBorder() string {
-	return m.hBorder(cornerBL, botT, cornerBR, thickH, botThin)
-}
-
-func (m *Model) thickMidBorder() string {
-	return m.hBorder(leftT, crossTT, rightT, thickH, topThin)
-}
-
-func (m *Model) thinMidBorder() string {
-	return m.hBorder(leftThin, crossTtV, rightThin, thinH, crossTt)
-}
-
-// hBorder renders a horizontal border line.
-// thinJunction is the character used where a thin internal column line meets
-// the horizontal border (e.g. ┯ on top, ┷ on bottom, ┼ within a box).
-func (m *Model) hBorder(left, mid, right, horiz, thinJunction string) string {
-	thick := m.thickVertStyle()
-	thin := m.vertStyle()
+// hBorder renders a full horizontal border line.
+// top/bottom use outer corners; mid rows use T-junctions or crosses.
+func (m *Model) hBorder(left, right, boxMid, innerMid, horiz string, boxEdge bool) string {
 	var sb strings.Builder
-	sb.WriteString(thick.Render(left))
+	outer := m.borderSt(true)
+	box := m.borderSt(true)
+	inner := m.borderSt(false)
+	_ = box
+	sb.WriteString(outer.Render(left))
 	for c := 0; c < size; c++ {
-		sb.WriteString(thick.Render(horiz))
+		// Horizontal segment colour: box edge rows brighter, inner rows muted.
+		sb.WriteString(m.borderSt(boxEdge).Render(horiz))
 		if c == size-1 {
-			sb.WriteString(thick.Render(right))
+			sb.WriteString(outer.Render(right))
 		} else if (c+1)%3 == 0 {
-			sb.WriteString(thick.Render(mid))
+			// Box boundary column junction.
+			sb.WriteString(m.borderSt(true).Render(boxMid))
 		} else {
-			sb.WriteString(thin.Render(thinJunction))
+			// Inner column junction.
+			sb.WriteString(inner.Render(innerMid))
 		}
 	}
 	return sb.String()
 }
 
-// suppress unused const warnings by referencing them
-var _ = topThin
-var _ = botThin
+func (m *Model) topBorder() string {
+	return m.hBorder(cTL, cTR, jTop, jTop, segH, true)
+}
+
+func (m *Model) bottomBorder() string {
+	return m.hBorder(cBL, cBR, jBot, jBot, segH, true)
+}
+
+func (m *Model) thickMidBorder() string {
+	return m.hBorder(jLeft, jRight, jCross, jCross, segH, true)
+}
+
+func (m *Model) thinMidBorder() string {
+	return m.hBorder(jLeft, jRight, jCross, jCross, segH, false)
+}
 
 func (m *Model) renderHelp() string {
 	line := func(s string) string { return m.styles.Muted.Render(s) }
