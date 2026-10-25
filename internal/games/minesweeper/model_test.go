@@ -2,10 +2,13 @@ package minesweeper
 
 import (
 	"math/rand"
+	"strings"
 	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/mahyarmirrashed/arcade/internal/game"
 	"github.com/mahyarmirrashed/arcade/internal/ui"
 )
 
@@ -377,4 +380,95 @@ func TestModel_viewRendersLost(t *testing.T) {
 	m := newTestModel()
 	m.state = stateLost
 	_ = m.View()
+}
+
+// stoppedClock returns a clock reading t0 that the test moves by hand.
+func stoppedClock(m *Model) *time.Time {
+	t0 := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	m.now = func() time.Time { return t0 }
+	return &t0
+}
+
+func TestModel_winReportsTimeFromFirstReveal(t *testing.T) {
+	m := newTestModel()
+	clock := stoppedClock(m)
+	m.handleKey(tea.KeyMsg{Type: tea.KeyEnter}) // first reveal starts the timer
+	if m.state != statePlaying {
+		t.Skip("the opening reveal cleared the whole board")
+	}
+
+	// Reveal every safe cell but one, then reveal that one 42s later.
+	var lastR, lastC int
+	for r := 0; r < m.board.rows; r++ {
+		for c := 0; c < m.board.cols; c++ {
+			if cl := &m.board.cells[r][c]; !cl.mine && cl.state != cellRevealed {
+				lastR, lastC = r, c
+			}
+		}
+	}
+	for r := 0; r < m.board.rows; r++ {
+		for c := 0; c < m.board.cols; c++ {
+			if cl := &m.board.cells[r][c]; !cl.mine && cl.state != cellRevealed && (r != lastR || c != lastC) {
+				cl.state = cellRevealed
+				m.board.revealed++
+			}
+		}
+	}
+	m.curR, m.curC = lastR, lastC
+	*clock = clock.Add(42 * time.Second)
+
+	cmd := m.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
+
+	want := game.ResultMsg{Game: "minesweeper", Ranking: game.ByTime,
+		Result: game.Result{Won: true, Duration: 42 * time.Second}}
+	if m.state != stateWon || cmd == nil || cmd() != want {
+		t.Errorf("state %v, cmd() = %v; want stateWon and %#v", m.state, cmd, want)
+	}
+}
+
+func TestModel_lossReportsALoss(t *testing.T) {
+	m := newTestModel()
+	m.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
+	for r := 0; r < m.board.rows; r++ {
+		for c := 0; c < m.board.cols; c++ {
+			if m.board.cells[r][c].mine {
+				m.curR, m.curC = r, c
+				cmd := m.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
+
+				want := game.ResultMsg{Game: "minesweeper", Ranking: game.ByTime}
+				if cmd == nil || cmd() != want {
+					t.Errorf("cmd() = %v; want %#v", cmd, want)
+				}
+				return
+			}
+		}
+	}
+	t.Fatal("no mine on the board")
+}
+
+func TestModel_standingAppearsAtGameOver(t *testing.T) {
+	m := newTestModel()
+	m.state = stateWon
+
+	m.Update(game.StandingMsg{Standing: game.Standing{Ranked: true, Rank: 3, Of: 4}})
+
+	if v := m.View(); !strings.Contains(v, "#3/4") {
+		t.Errorf("game-over view doesn't show the standing:\n%s", v)
+	}
+}
+
+func TestModel_tooSmallTerminalShowsNoticeAndIgnoresKeys(t *testing.T) {
+	m := newTestModel()
+	r, c := m.curR, m.curC
+
+	m.Update(tea.WindowSizeMsg{Width: 20, Height: 8})
+	m.Update(tea.KeyMsg{Type: tea.KeyLeft})
+	m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+
+	if v := m.View(); !strings.Contains(v, "terminal too small") {
+		t.Errorf("20x8 view does not say the terminal is too small:\n%s", v)
+	}
+	if m.curR != r || m.curC != c || m.board.seeded {
+		t.Error("keys acted on the board while the player couldn't see it")
+	}
 }

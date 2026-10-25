@@ -15,7 +15,7 @@ import (
 )
 
 // Compile-time check: Model must satisfy game.Game.
-var _ game.Game = (*Model)(nil)
+var _ game.Ranked = (*Model)(nil)
 
 type gameState int
 
@@ -55,12 +55,19 @@ type Model struct {
 	height int
 	rng    *rand.Rand
 	styles ui.Styles
+
+	now      func() time.Time // the clock; replaced in tests
+	started  time.Time        // when the first cell was revealed
+	standing *game.Standing   // where the finished game placed, once known
 }
 
 // - game.Game implementation -
 
 func (m *Model) Name() string        { return "Minesweeper" }
 func (m *Model) Description() string { return "clear the minefield" }
+
+// Ranking implements game.Ranked.
+func (m *Model) Ranking() game.Ranking { return game.ByTime }
 
 func (m *Model) New(width, height int, styles ui.Styles) tea.Model {
 	return newModel(width, height, styles)
@@ -78,6 +85,7 @@ func newModel(width, height int, styles ui.Styles) *Model {
 		height: height,
 		rng:    rng,
 		styles: styles,
+		now:    time.Now,
 	}
 }
 
@@ -94,7 +102,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 	case tea.KeyMsg:
+		// Ignore keys while the player can't see the board.
+		if !m.fits() {
+			return m, nil
+		}
 		return m, m.handleKey(msg)
+	case game.StandingMsg:
+		if m.state != statePlaying {
+			s := msg.Standing
+			m.standing = &s
+		}
 	}
 	return m, nil
 }
@@ -102,6 +119,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 	if msg.String() == "r" && m.state != statePlaying {
 		fresh := newModel(m.width, m.height, m.styles)
+		fresh.now = m.now
 		return func() tea.Msg { return restartMsg{fresh} }
 	}
 
@@ -127,11 +145,16 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 			m.curC++
 		}
 	case key.Matches(msg, keys.reveal):
+		if !m.board.seeded {
+			m.started = m.now() // the clock starts with the first reveal
+		}
 		if m.board.reveal(m.curR, m.curC, m.rng) {
 			m.board.revealAll()
 			m.state = stateLost
+			return game.Finished(m, game.Result{})
 		} else if m.board.hasWon() {
 			m.state = stateWon
+			return game.Finished(m, game.Result{Won: true, Duration: m.now().Sub(m.started)})
 		}
 	case key.Matches(msg, keys.flag):
 		m.board.toggleFlag(m.curR, m.curC)
@@ -159,7 +182,24 @@ var neighbourColors = [9]lipgloss.Color{
 }
 
 func (m *Model) View() string {
-	// Intercept restartMsg here too.
+	layout := m.layout()
+	if w, h := lipgloss.Size(layout); w > m.width || h > m.height {
+		return m.styles.TooSmall(m.width, m.height, w, h)
+	}
+	return lipgloss.Place(m.width, m.height,
+		lipgloss.Center, lipgloss.Center,
+		layout,
+	)
+}
+
+// fits reports whether the whole layout fits in the terminal.
+func (m *Model) fits() bool {
+	w, h := lipgloss.Size(m.layout())
+	return w <= m.width && h <= m.height
+}
+
+// layout renders the help, the titled board and the side panel side by side.
+func (m *Model) layout() string {
 	help := m.renderHelp()
 	boardStr := m.renderBoard()
 
@@ -167,13 +207,8 @@ func (m *Model) View() string {
 	boardWithTitle := lipgloss.JoinVertical(lipgloss.Left, title, "", boardStr)
 
 	pad := m.styles.NewStyle().PaddingBottom(1)
-	layout := lipgloss.JoinHorizontal(lipgloss.Bottom,
+	return lipgloss.JoinHorizontal(lipgloss.Bottom,
 		pad.Render(help), "  ", boardWithTitle, "  ", pad.Render(m.renderSide()),
-	)
-
-	return lipgloss.Place(m.width, m.height,
-		lipgloss.Center, lipgloss.Center,
-		layout,
 	)
 }
 
@@ -190,19 +225,21 @@ func (m *Model) renderBoard() string {
 
 	inner := sb.String()
 
+	var overlay string
 	switch m.state {
 	case stateWon:
-		w := lipgloss.Width(inner)
-		h := lipgloss.Height(inner)
-		inner = lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center,
-			m.styles.Error.Render(" you win! "),
-			lipgloss.WithWhitespaceChars(" "),
-		)
+		overlay = m.styles.Error.Render(" you win! ")
 	case stateLost:
-		w := lipgloss.Width(inner)
-		h := lipgloss.Height(inner)
-		inner = lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center,
-			m.styles.Error.Render(" boom! "),
+		overlay = m.styles.Error.Render(" boom! ")
+	}
+	if overlay != "" {
+		if m.standing != nil {
+			overlay = lipgloss.JoinVertical(lipgloss.Center,
+				overlay, "", m.styles.Muted.Render(m.standing.String()))
+		}
+		inner = lipgloss.Place(lipgloss.Width(inner), lipgloss.Height(inner),
+			lipgloss.Center, lipgloss.Center,
+			overlay,
 			lipgloss.WithWhitespaceChars(" "),
 		)
 	}
