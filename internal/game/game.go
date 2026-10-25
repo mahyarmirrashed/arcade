@@ -23,6 +23,14 @@ type Game interface {
 	New(width, height int, styles ui.Styles) tea.Model
 }
 
+// SizeConstraint is an optional interface a Game may implement to advertise
+// the minimum terminal size it requires. The lobby checks this and shows a
+// warning when the player's terminal is too small.
+type SizeConstraint interface {
+	// MinSize returns the minimum terminal width and height required to play.
+	MinSize() (width, height int)
+}
+
 // Registry holds the set of available games, in registration order.
 // It is injected at startup — no global state, no init().
 type Registry struct {

@@ -82,6 +82,13 @@ func (m *Model) Name() string { return "Snake" }
 // Description implements game.Game.
 func (m *Model) Description() string { return "eat, grow, don't bite yourself" }
 
+// MinSize implements game.SizeConstraint.
+func (m *Model) MinSize() (int, int) {
+	minW := minCols*cellWidth + chromeWidth()
+	minH := minRows + titleH + borderH
+	return minW, minH
+}
+
 // New implements game.Game — returns a fresh model for a new session.
 func (m *Model) New(width, height int, styles ui.Styles) tea.Model {
 	return newModel(width, height, rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64())), styles)

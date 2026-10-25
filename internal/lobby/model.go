@@ -2,6 +2,8 @@
 package lobby
 
 import (
+	"fmt"
+
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -117,13 +119,40 @@ func (m Model) Width() int { return m.width }
 // Height returns the current terminal height.
 func (m Model) Height() int { return m.height }
 
-// selectedDescription returns the description of the currently highlighted game.
-func (m Model) selectedDescription() string {
+// selectedGame returns the currently highlighted game, or nil.
+func (m Model) selectedGame() game.Game {
 	i := m.list.Index()
 	if i >= 0 && i < len(m.games) {
-		return m.games[i].Description()
+		return m.games[i]
 	}
-	return ""
+	return nil
+}
+
+// selectedDescription returns the description of the currently highlighted game.
+func (m Model) selectedDescription() string {
+	g := m.selectedGame()
+	if g == nil {
+		return ""
+	}
+	return g.Description()
+}
+
+// sizeWarning returns a warning string if the current terminal is too small
+// for the selected game, or an empty string otherwise.
+func (m Model) sizeWarning() string {
+	g := m.selectedGame()
+	if g == nil {
+		return ""
+	}
+	sc, ok := g.(game.SizeConstraint)
+	if !ok {
+		return ""
+	}
+	minW, minH := sc.MinSize()
+	if m.width >= minW && m.height >= minH {
+		return ""
+	}
+	return fmt.Sprintf("terminal too small - resize to at least %dx%d", minW, minH)
 }
 
 // Init implements tea.Model.
@@ -148,9 +177,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) View() string {
 	title   := m.styles.Title.Render("arcade")
 	tagline := m.styles.Muted.Render(appTagline)
-	desc    := m.styles.Subtitle.Render(m.selectedDescription())
-	items   := m.list.View()
-	help    := m.styles.Muted.Render("↑/↓  navigate   enter  select   q  quit")
+
+	var desc string
+	if w := m.sizeWarning(); w != "" {
+		desc = m.styles.Error.Render(" " + w + " ")
+	} else {
+		desc = m.styles.Subtitle.Render(m.selectedDescription())
+	}
+
+	items := m.list.View()
+	help  := m.styles.Muted.Render("↑/↓  navigate   enter  select   q  quit")
 
 	content := lipgloss.JoinVertical(lipgloss.Left,
 		title,
