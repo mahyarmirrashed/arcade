@@ -277,9 +277,9 @@ func (m *Model) boxSt() lipgloss.Style {
 	return m.styles.NewStyle().Foreground(ui.ColorText)
 }
 
-// innerSt is the style for inner column/row separators within a 3x3 box: muted grey.
+// innerSt is the style for inner column/row separators within a 3x3 box.
 func (m *Model) innerSt() lipgloss.Style {
-	return m.styles.NewStyle().Foreground(ui.ColorMuted)
+	return m.styles.NewStyle().Foreground(ui.ColorSubtle)
 }
 
 func (m *Model) dataRow(r int) string {
