@@ -6,10 +6,8 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 
 	"github.com/mahyarmirrashed/arcade/internal/game"
-	"github.com/mahyarmirrashed/arcade/internal/ui"
 )
 
 // Compile-time check: Model must satisfy game.Game.
@@ -141,17 +139,4 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 	return m, nil
-}
-
-// View implements tea.Model.
-func (m *Model) View() string {
-	content := ui.Title.Render("snake") + "\n\n" +
-		ui.Muted.Render("coming soon") + "\n\n" +
-		ui.Muted.Render("q  quit")
-
-	return lipgloss.Place(
-		m.width, m.height,
-		lipgloss.Center, lipgloss.Center,
-		ui.Border.Render(content),
-	)
 }
