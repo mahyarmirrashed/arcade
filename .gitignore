@@ -4,5 +4,5 @@ id_ed25519.pub
 .ssh/
 
 # go build output
-arcade
-snake
+/arcade
+/snake
