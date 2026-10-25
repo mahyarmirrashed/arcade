@@ -203,6 +203,10 @@ func (m Model) View() string {
 		help,
 	)
 
+	if panel := m.leaderboard(); panel != "" {
+		content = lipgloss.JoinHorizontal(lipgloss.Top, content, "    ", panel)
+	}
+
 	// Show a notice rather than letting Bubble Tea clip the lobby.
 	if w, h := lipgloss.Size(content); w > m.width || h > m.height {
 		return m.styles.TooSmall(m.width, m.height, w, h)
@@ -213,4 +217,50 @@ func (m Model) View() string {
 		lipgloss.Center, lipgloss.Center,
 		content,
 	)
+}
+
+// topN is how many players the lobby lists for each game.
+const topN = 10
+
+// leaderboard renders the highlighted game's best players and where this
+// player stands, or "" if there is no leaderboard or the game isn't ranked.
+func (m Model) leaderboard() string {
+	g, ok := m.selectedGame().(game.Ranked)
+	if !ok || !m.lb.Enabled() {
+		return ""
+	}
+	id, r := game.ID(g), g.Ranking()
+
+	lines := []string{m.styles.Subtitle.Render(leaderboard.Label(r)), ""}
+	top := m.lb.Top(id, r, topN)
+	if len(top) == 0 {
+		lines = append(lines, m.styles.Muted.Render("no scores yet"))
+	}
+	for _, e := range top {
+		row := fmt.Sprintf("%2d  %-12s %6s", e.Rank, e.Name, e.Value)
+		if e.You {
+			row = m.styles.Accent.Render(row)
+		} else {
+			row = m.styles.Subtitle.Render(row)
+		}
+		lines = append(lines, row)
+	}
+	lines = append(lines, "", m.standing(id, r))
+	return lipgloss.JoinVertical(lipgloss.Left, lines...)
+}
+
+// standing says where the player stands on a game's board, or how to get on
+// it.
+func (m Model) standing(id string, r game.Ranking) string {
+	switch {
+	case m.lb.NeedsName():
+		return m.styles.Muted.Render("reconnect to pick a name")
+	case m.lb.Name() == "":
+		return m.styles.Muted.Render("connect with an ssh key\nto be ranked")
+	}
+	rank, of := m.lb.Rank(id, r)
+	if rank == 0 {
+		return m.styles.Muted.Render("you: not ranked yet")
+	}
+	return m.styles.Accent.Render(fmt.Sprintf("you: #%d of %d", rank, of))
 }

@@ -2,6 +2,7 @@ package lobby_test
 
 import (
 	"io"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -147,5 +148,75 @@ func TestView_tooSmallTerminalShowsNotice(t *testing.T) {
 	}
 	if strings.Contains(normal, "terminal too small") || !strings.Contains(normal, "Alpha") {
 		t.Errorf("80x24 view after growing back should list the games:\n%s", normal)
+	}
+}
+
+// rankedStub is a stub game that appears on the leaderboard by score.
+type rankedStub struct{ stubGame }
+
+func (rankedStub) Ranking() game.Ranking { return game.ByScore }
+
+func boardWith(t *testing.T, scores map[string]int) *leaderboard.Board {
+	t.Helper()
+	b, err := leaderboard.Open(filepath.Join(t.TempDir(), "leaderboard.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, score := range scores {
+		s := b.Session("key-" + name)
+		if err := s.SetName(name); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.Record("ranked", game.ByScore, game.Result{Score: score}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return b
+}
+
+func lobbyView(g game.Game, s leaderboard.Session) string {
+	return lobby.New(80, 24, game.NewRegistry(g), testStyles(), s).View()
+}
+
+func TestView_showsTopScoresForTheHighlightedGame(t *testing.T) {
+	b := boardWith(t, map[string]int{"alice": 50, "bob": 30})
+
+	v := lobbyView(rankedStub{stubGame{"Ranked"}}, b.Session("key-bob"))
+
+	for _, want := range []string{"best score", "alice", "50", "bob", "30", "you: #2 of 2"} {
+		if !strings.Contains(v, want) {
+			t.Errorf("lobby view is missing %q:\n%s", want, v)
+		}
+	}
+	if strings.Index(v, "alice") > strings.Index(v, "bob") {
+		t.Errorf("alice (50) should be listed above bob (30):\n%s", v)
+	}
+}
+
+func TestView_leaderboardPanelVariants(t *testing.T) {
+	b := boardWith(t, nil)
+
+	tests := []struct {
+		name   string
+		game   game.Game
+		s      leaderboard.Session
+		want   string
+		absent string
+	}{
+		{"empty board", rankedStub{stubGame{"Ranked"}}, b.Session("key"), "no scores yet", ""},
+		{"guest", rankedStub{stubGame{"Ranked"}}, b.Session(""), "connect with an ssh key", ""},
+		{"game without a leaderboard", stubGame{"Plain"}, b.Session("key"), "", "best score"},
+		{"no leaderboard at all", rankedStub{stubGame{"Ranked"}}, leaderboard.Session{}, "", "best score"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v := lobbyView(tt.game, tt.s)
+			if tt.want != "" && !strings.Contains(v, tt.want) {
+				t.Errorf("lobby view is missing %q:\n%s", tt.want, v)
+			}
+			if tt.absent != "" && strings.Contains(v, tt.absent) {
+				t.Errorf("lobby view shouldn't show %q:\n%s", tt.absent, v)
+			}
+		})
 	}
 }
