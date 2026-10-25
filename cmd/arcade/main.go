@@ -1,5 +1,12 @@
 // Command arcade is the production SSH server for the arcade.
 // It serves the lobby on :2222; players pick from all registered games.
+//
+// Flags:
+//
+//	--addr          address to listen on          (default :2222)
+//	--host-key      path to ed25519 host key      (default .ssh/id_ed25519)
+//	--idle-timeout  disconnect idle sessions       (default 30m, 0 = disabled)
+//	--shutdown-timeout  graceful shutdown window   (default 30s)
 package main
 
 import (
@@ -7,13 +14,13 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/log"
 	"github.com/charmbracelet/ssh"
 	"github.com/charmbracelet/wish"
 
+	"github.com/mahyarmirrashed/arcade/internal/config"
 	"github.com/mahyarmirrashed/arcade/internal/game"
 	"github.com/mahyarmirrashed/arcade/internal/games/snake"
 	"github.com/mahyarmirrashed/arcade/internal/games/tetris"
@@ -21,21 +28,24 @@ import (
 	"github.com/mahyarmirrashed/arcade/internal/server"
 )
 
-const (
-	addr    = "127.0.0.1:2222"
-	hostKey = ".ssh/id_ed25519"
-)
 
 func main() {
+	cfg := config.Parse(":2222", ".ssh/id_ed25519")
+
 	reg := game.NewRegistry(
 		&tetris.Model{},
 		&snake.Model{},
 	)
 
-	s, err := server.New(handler(reg),
-		wish.WithAddress(addr),
-		wish.WithHostKeyPath(hostKey),
-	)
+	opts := []ssh.Option{
+		wish.WithAddress(cfg.Addr),
+		wish.WithHostKeyPath(cfg.HostKeyPath),
+	}
+	if cfg.IdleTimeout > 0 {
+		opts = append(opts, wish.WithIdleTimeout(cfg.IdleTimeout))
+	}
+
+	s, err := server.New(handler(reg), opts...)
 	if err != nil {
 		log.Fatal("could not create server", "error", err)
 	}
@@ -43,7 +53,7 @@ func main() {
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
-	log.Info("starting arcade", "addr", addr)
+	log.Info("starting arcade", "addr", cfg.Addr)
 	go func() {
 		if err := s.ListenAndServe(); err != nil && err != ssh.ErrServerClosed {
 			log.Fatal("server error", "error", err)
@@ -51,9 +61,9 @@ func main() {
 	}()
 
 	<-done
-	log.Info("shutting down")
+	log.Info("shutting down", "timeout", cfg.ShutdownTimeout)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
 	defer cancel()
 
 	if err := s.Shutdown(ctx); err != nil {
