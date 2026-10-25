@@ -298,15 +298,16 @@ const (
 	cellGhost = "░░"
 )
 
-// pieceColor maps each piece type to a colour.
+// pieceColor maps each piece type to a colour from ui.Spectrum.
+// Spectrum order: [0]=red [1]=orange [2]=yellow [3]=green [4]=cyan [5]=blue [6]=purple
 var pieceColor = [7]lipgloss.Color{
-	PieceI: lipgloss.Color("51"),  // cyan
-	PieceO: lipgloss.Color("226"), // yellow
-	PieceT: lipgloss.Color("129"), // purple
-	PieceS: lipgloss.Color("46"),  // green
-	PieceZ: lipgloss.Color("196"), // red
-	PieceJ: lipgloss.Color("21"),  // blue
-	PieceL: lipgloss.Color("208"), // orange
+	PieceI: ui.Spectrum[4], // cyan
+	PieceO: ui.Spectrum[2], // yellow
+	PieceT: ui.Spectrum[6], // purple
+	PieceS: ui.Spectrum[3], // green
+	PieceZ: ui.Spectrum[0], // red
+	PieceJ: ui.Spectrum[5], // blue
+	PieceL: ui.Spectrum[1], // orange
 }
 
 // View implements tea.Model.
