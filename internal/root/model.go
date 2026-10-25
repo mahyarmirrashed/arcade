@@ -231,7 +231,7 @@ func (m Model) viewName() string {
 		"",
 		hint,
 		"",
-		m.styles.Muted.Render("enter  save   esc  skip (play unranked)"),
+		m.styles.Muted.Render("enter to save · esc to skip"),
 	)
 	if w, h := lipgloss.Size(content); w > m.width || h > m.height {
 		return m.styles.TooSmall(m.width, m.height, w, h)
