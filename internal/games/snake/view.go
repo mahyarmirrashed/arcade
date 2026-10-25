@@ -41,11 +41,18 @@ const (
 	foodCell  = "()"
 )
 
-var (
-	headStyle = lipgloss.NewStyle().Foreground(ui.ColorText)
-	bodyStyle = lipgloss.NewStyle().Foreground(ui.ColorSubtle)
-	foodStyle = lipgloss.NewStyle().Foreground(ui.ColorText)
-)
+var headStyle = lipgloss.NewStyle().Foreground(ui.ColorText)
+
+// spectrumIndex is the position in ui.Spectrum of body segment i, counting
+// the neck as 1, so the colours run through the spectrum from neck to tail.
+func spectrumIndex(i int) int { return (i - 1) % len(ui.Spectrum) }
+
+// segmentColor is the colour of body segment i, counting the neck as 1.
+func segmentColor(i int) lipgloss.Color { return ui.Spectrum[spectrumIndex(i)] }
+
+// foodColor is the colour of the segment that eating the food will add, so
+// the food shows the block the player is about to gain.
+func foodColor(b *board) lipgloss.Color { return segmentColor(len(b.body)) }
 
 // chromeWidth is the number of columns taken by everything beside the board's
 // cells: the help panel, the side panel, the gaps and the border.
@@ -139,23 +146,28 @@ func (m *Model) renderBoard() string {
 func (m *Model) renderGrid() string {
 	b := &m.board
 	head := headStyle.Render(snakeCell)
-	body := bodyStyle.Render(snakeCell)
-	food := foodStyle.Render(foodCell)
+	food := lipgloss.NewStyle().Foreground(foodColor(b)).Render(foodCell)
+	bodies := make([]string, len(ui.Spectrum))
+	for k, c := range ui.Spectrum {
+		bodies[k] = lipgloss.NewStyle().Foreground(c).Render(snakeCell)
+	}
 
-	occupied := make(map[point]bool, len(b.body))
-	for _, p := range b.body[1:] {
-		occupied[p] = true
+	segment := make(map[point]int, len(b.body))
+	for i, p := range b.body[1:] {
+		segment[p] = i + 1
 	}
 
 	lines := make([]string, b.rows)
 	for y := range b.rows {
 		var sb strings.Builder
 		for x := range b.cols {
-			switch p := (point{x, y}); {
+			p := point{x, y}
+			i, inBody := segment[p]
+			switch {
 			case p == b.body[0]:
 				sb.WriteString(head)
-			case occupied[p]:
-				sb.WriteString(body)
+			case inBody:
+				sb.WriteString(bodies[spectrumIndex(i)])
 			case p == b.food && !b.won:
 				sb.WriteString(food)
 			default:
