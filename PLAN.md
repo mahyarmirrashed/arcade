@@ -209,7 +209,7 @@ compile and accept SSH connections.
    positions), direction, food, score, alive, width, height
 2. `Init()` returns first tick command
 3. `Update()` handles `TickMsg` (advance), `tea.KeyPressMsg` (steer),
-   `tea.WindowSizeMsg` (resize + reset)
+   `tea.WindowSizeMsg` (resize; pause if the board no longer fits)
 4. `View()` renders grid + score using shared `ui/style` theme
 5. `cmd/snake/main.go` updated to use real `snake.Model`
 6. Compile-time check: `var _ game.Game = (*Model)(nil)`
@@ -458,6 +458,18 @@ Every game `View()` must follow this pattern:
   inner content (the border adds 1 row top and bottom)
 - All multi-line content built with `lipgloss.JoinVertical` — no raw `\n`
   concatenation
+
+### Resizing
+
+Players may resize at any time, so every screen handles `tea.WindowSizeMsg` in
+every state, including game over:
+
+- Track the new size and re-centre. Never reset a game in progress.
+- If the layout no longer fits, render
+  `styles.TooSmall(width, height, minW, minH)` instead of letting Bubble Tea
+  clip it, and pause the game until it fits again.
+- The root model (and `cmd/snake`'s standalone wrapper) clears the screen on
+  resize, so games don't need to.
 
 ### Quit handling
 
