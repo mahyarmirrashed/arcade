@@ -1,9 +1,9 @@
 // Command arcade is the production SSH server for the arcade.
-// It serves the lobby on :2222; players pick from all registered games.
+// It serves the lobby on 127.0.0.1:2222; players pick from all registered games.
 //
 // Flags:
 //
-//	--addr          address to listen on          (default :2222)
+//	--addr          address to listen on          (default 127.0.0.1:2222)
 //	--host-key      path to ed25519 host key      (default .ssh/id_ed25519)
 //	--idle-timeout  disconnect idle sessions       (default 30m, 0 = disabled)
 //	--shutdown-timeout  graceful shutdown window   (default 30s)
@@ -29,9 +29,10 @@ import (
 	"github.com/mahyarmirrashed/arcade/internal/ui"
 )
 
-
 func main() {
-	cfg := config.Parse(":2222", ".ssh/id_ed25519")
+	// Listen on loopback unless told otherwise; serving other machines is a
+	// deliberate choice made with --addr (e.g. --addr :2222).
+	cfg := config.Parse("127.0.0.1:2222", ".ssh/id_ed25519")
 
 	reg := game.NewRegistry(
 		&tetris.Model{},

@@ -8,7 +8,7 @@ import (
 
 // Config holds the runtime configuration for an arcade server.
 type Config struct {
-	// Addr is the address the SSH server listens on (e.g. ":2222").
+	// Addr is the address the SSH server listens on (e.g. "127.0.0.1:2222").
 	Addr string
 
 	// HostKeyPath is the path to the ed25519 host key file.

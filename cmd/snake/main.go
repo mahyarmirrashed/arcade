@@ -3,7 +3,7 @@
 //
 // Flags:
 //
-//	--addr          address to listen on          (default :2223)
+//	--addr          address to listen on          (default 127.0.0.1:2223)
 //	--host-key      path to ed25519 host key      (default .ssh/id_ed25519)
 //	--idle-timeout  disconnect idle sessions       (default 30m, 0 = disabled)
 //	--shutdown-timeout  graceful shutdown window   (default 30s)
@@ -27,7 +27,9 @@ import (
 )
 
 func main() {
-	cfg := config.Parse(":2223", ".ssh/id_ed25519")
+	// Listen on loopback unless told otherwise; serving other machines is a
+	// deliberate choice made with --addr (e.g. --addr :2223).
+	cfg := config.Parse("127.0.0.1:2223", ".ssh/id_ed25519")
 
 	opts := []ssh.Option{
 		wish.WithAddress(cfg.Addr),
