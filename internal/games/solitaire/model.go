@@ -485,7 +485,7 @@ func (m *Model) renderTableauCol(col int) string {
 		if isLast {
 			lines = append(lines, cardLines...)
 		} else if c.FaceUp {
-			lines = append(lines, cardLines[:2]...)
+			lines = append(lines, cardLines[0])
 		} else {
 			lines = append(lines, cardLines[0])
 		}
