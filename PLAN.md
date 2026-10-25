@@ -326,6 +326,25 @@ compile and accept SSH connections.
 
 ---
 
+### Stage 4B — Leaderboards
+
+**Goal:** persistent leaderboards per game, kept across server restarts.
+
+- **Identity:** the server accepts any SSH public key (SSH proves possession)
+  and keyboard-interactive with no questions for players without one. A key's
+  SHA-256 fingerprint is the player ID; a first visit asks for a display name
+  (3–12 of `A-Z a-z 0-9 - _`, unique ignoring case). Keyless players are
+  unranked guests. Fingerprints are never displayed.
+- **Rules:** best score (2048, Snake, Tetris; earlier score wins ties),
+  longest win streak then fewest guesses per win (Wordle), fastest win
+  (Minesweeper). Snake's board is fixed at 28×20 so scores are comparable.
+- **Storage:** `internal/leaderboard`, one JSON file at
+  `<data-dir>/leaderboard.json`, rewritten atomically (temp file + rename,
+  mode 0600) after every change, guarded by a mutex. Only `cmd/arcade` opens
+  it. An unreadable file is a startup error, never overwritten.
+- **Display:** the lobby lists the top 10 for the highlighted game and the
+  player's own rank; game-over screens show "new best! #3/12" and the like.
+
 ### Stage 5 — Future Games (Backlog)
 
 Adding a game = implement `Game` interface + one line in `cmd/arcade/main.go`.
@@ -470,6 +489,15 @@ every state, including game over:
   clip it, and pause the game until it fits again.
 - The root model (and `cmd/snake`'s standalone wrapper) clears the screen on
   resize, so games don't need to.
+
+### Leaderboard results
+
+Every game implements `game.Ranked` (`Ranking()` returns `game.ByScore`,
+`game.ByStreak` or `game.ByTime`) and, when a game ends, returns
+`game.Finished(m, game.Result{...})`. The root model records the result and
+replies with a `game.StandingMsg`, which the game shows on its game-over
+screen (`Standing.String()` is short enough for a 20-column board). Games never
+touch storage themselves.
 
 ### Quit handling
 
