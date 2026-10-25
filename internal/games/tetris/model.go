@@ -2,6 +2,12 @@
 package tetris
 
 import (
+	"fmt"
+	"math/rand"
+	"strings"
+	"time"
+
+	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -9,14 +15,74 @@ import (
 	"github.com/mahyarmirrashed/arcade/internal/ui"
 )
 
+// TODO(stage-polish): implement hold-piece mechanic (swap current piece with
+// a stored piece using the 'c' key).
+
 // Compile-time check: Model must satisfy game.Game.
 var _ game.Game = (*Model)(nil)
 
+// tickMsg is sent on every gravity tick.
+type tickMsg time.Time
+
+// tickCmd returns a command that fires after the appropriate delay for level.
+func tickCmd(level int) tea.Cmd {
+	delay := time.Duration(max(50, 1000-level*100)) * time.Millisecond
+	return tea.Tick(delay, func(t time.Time) tea.Msg { return tickMsg(t) })
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+// keys defines all Tetris keybindings.
+type keyMap struct {
+	left    key.Binding
+	right   key.Binding
+	rotateCW  key.Binding
+	rotateCCW key.Binding
+	softDrop  key.Binding
+	hardDrop  key.Binding
+	quit    key.Binding
+}
+
+var keys = keyMap{
+	left:      key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "move left")),
+	right:     key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "move right")),
+	rotateCW:  key.NewBinding(key.WithKeys("up", "x"), key.WithHelp("↑/x", "rotate CW")),
+	rotateCCW: key.NewBinding(key.WithKeys("z"), key.WithHelp("z", "rotate CCW")),
+	softDrop:  key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "soft drop")),
+	hardDrop:  key.NewBinding(key.WithKeys(" "), key.WithHelp("space", "hard drop")),
+	quit:      key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
+}
+
+// piece tracks the active falling piece.
+type piece struct {
+	pt      PieceType
+	rot     int
+	row     int // top-left row on board
+	col     int // top-left col on board
+}
+
+func (p piece) shape() Shape {
+	return Rotation(p.pt, p.rot)
+}
+
 // Model is the Bubbletea model for Tetris.
-// Full implementation lives in Stage 2B.
 type Model struct {
-	width  int
-	height int
+	board   board
+	current piece
+	next    PieceType
+	score   int
+	level   int
+	lines   int
+	alive   bool
+	started bool
+	width   int
+	height  int
+	rng     *rand.Rand
 }
 
 // — game.Game implementation —
@@ -29,38 +95,287 @@ func (m *Model) Description() string { return "clear lines, survive gravity" }
 
 // New implements game.Game — returns a fresh model for a new session.
 func (m *Model) New(width, height int) tea.Model {
-	return &Model{width: width, height: height}
+	return newModel(width, height)
+}
+
+// newModel constructs a ready-to-play Model.
+func newModel(width, height int) *Model {
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	m := &Model{
+		width:  width,
+		height: height,
+		level:  1,
+		alive:  true,
+		rng:    rng,
+		next:   PieceType(rng.Intn(7)),
+	}
+	m.spawn()
+	return m
+}
+
+// spawn places the next piece at the top of the board and draws a new next.
+func (m *Model) spawn() {
+	pt := m.next
+	m.next = PieceType(m.rng.Intn(7))
+	col := boardCols/2 - 2
+	p := piece{pt: pt, rot: 0, row: 0, col: col}
+	if collides(m.board, p.shape(), p.row, p.col) {
+		m.alive = false
+		return
+	}
+	m.current = p
 }
 
 // — tea.Model implementation —
 
 // Init implements tea.Model.
-func (m *Model) Init() tea.Cmd { return nil }
+func (m *Model) Init() tea.Cmd {
+	m.started = true
+	return tickCmd(m.level)
+}
 
 // Update implements tea.Model.
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if !m.alive {
+		if km, ok := msg.(tea.KeyMsg); ok {
+			switch km.String() {
+			case "r":
+				fresh := newModel(m.width, m.height)
+				return fresh, fresh.Init()
+			}
+		}
+		return m, nil
+	}
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+
+	case tickMsg:
+		m.gravity()
+		return m, tickCmd(m.level)
+
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "q", "ctrl+c":
-			return m, tea.Quit
+		switch {
+		case key.Matches(msg, keys.left):
+			m.tryMove(0, -1)
+		case key.Matches(msg, keys.right):
+			m.tryMove(0, 1)
+		case key.Matches(msg, keys.rotateCW):
+			m.tryRotate(1)
+		case key.Matches(msg, keys.rotateCCW):
+			m.tryRotate(-1)
+		case key.Matches(msg, keys.softDrop):
+			m.gravity()
+		case key.Matches(msg, keys.hardDrop):
+			m.hardDrop()
 		}
 	}
+
 	return m, nil
+}
+
+// gravity advances the current piece one row. If it can't move, it locks.
+func (m *Model) gravity() {
+	if !collides(m.board, m.current.shape(), m.current.row+1, m.current.col) {
+		m.current.row++
+		return
+	}
+	m.lock()
+}
+
+// hardDrop drops the piece to the lowest valid position immediately.
+func (m *Model) hardDrop() {
+	for !collides(m.board, m.current.shape(), m.current.row+1, m.current.col) {
+		m.current.row++
+	}
+	m.lock()
+}
+
+// lock stamps the current piece onto the board, clears lines, and spawns next.
+func (m *Model) lock() {
+	m.board = place(m.board, m.current.shape(), m.current.row, m.current.col, m.current.pt)
+	var cleared int
+	m.board, cleared = clearLines(m.board)
+	if cleared > 0 {
+		m.score += score(cleared, m.level)
+		m.lines += cleared
+		m.level = m.lines/10 + 1
+	}
+	m.spawn()
+}
+
+// tryMove attempts to shift the current piece by (dRow, dCol).
+func (m *Model) tryMove(dRow, dCol int) {
+	nr := m.current.row + dRow
+	nc := m.current.col + dCol
+	if !collides(m.board, m.current.shape(), nr, nc) {
+		m.current.row = nr
+		m.current.col = nc
+	}
+}
+
+// tryRotate attempts a CW (dir=1) or CCW (dir=-1) rotation with SRS wall-kicks.
+func (m *Model) tryRotate(dir int) {
+	fromRot := m.current.rot
+	toRot := (fromRot + dir + 4) % 4
+	newShape := Rotation(m.current.pt, toRot)
+
+	offsets := WallKickOffsets(m.current.pt, fromRot, toRot)
+	if len(offsets) == 0 {
+		// O piece or no table entry — attempt plain rotation.
+		offsets = [][2]int{{0, 0}}
+	}
+
+	for _, off := range offsets {
+		nc := m.current.col + off[0]
+		nr := m.current.row + off[1]
+		if !collides(m.board, newShape, nr, nc) {
+			m.current.rot = toRot
+			m.current.row = nr
+			m.current.col = nc
+			return
+		}
+	}
+}
+
+// ghostRow returns the row where the current piece would land if dropped.
+func (m *Model) ghostRow() int {
+	row := m.current.row
+	for !collides(m.board, m.current.shape(), row+1, m.current.col) {
+		row++
+	}
+	return row
+}
+
+// — View —
+
+const (
+	cellFull  = "██"
+	cellEmpty = "  "
+	cellGhost = "░░"
+)
+
+// pieceColor maps each piece type to a colour.
+var pieceColor = [7]lipgloss.Color{
+	PieceI: lipgloss.Color("51"),  // cyan
+	PieceO: lipgloss.Color("226"), // yellow
+	PieceT: lipgloss.Color("129"), // purple
+	PieceS: lipgloss.Color("46"),  // green
+	PieceZ: lipgloss.Color("196"), // red
+	PieceJ: lipgloss.Color("21"),  // blue
+	PieceL: lipgloss.Color("208"), // orange
 }
 
 // View implements tea.Model.
 func (m *Model) View() string {
-	content := ui.Title.Render("tetris") + "\n\n" +
-		ui.Muted.Render("coming soon") + "\n\n" +
-		ui.Muted.Render("q  quit")
+	board := m.renderBoard()
+	side := m.renderSide()
 
-	return lipgloss.Place(
-		m.width, m.height,
+	game := lipgloss.JoinHorizontal(lipgloss.Top, board, "  ", side)
+
+	if !m.alive {
+		overlay := ui.Error.Render("game over") + "\n" +
+			ui.Muted.Render("r  restart  ·  q  quit")
+		game = lipgloss.JoinVertical(lipgloss.Center, game, "", overlay)
+	}
+
+	return lipgloss.Place(m.width, m.height,
 		lipgloss.Center, lipgloss.Center,
-		ui.Border.Render(content),
+		game,
 	)
+}
+
+func (m *Model) renderBoard() string {
+	// Build a grid of strings to render.
+	grid := [boardRows][boardCols]string{}
+
+	// Filled board cells.
+	for r := 0; r < boardRows; r++ {
+		for c := 0; c < boardCols; c++ {
+			if m.board[r][c].filled {
+				color := pieceColor[m.board[r][c].pieceType]
+				grid[r][c] = lipgloss.NewStyle().Foreground(color).Render(cellFull)
+			} else {
+				grid[r][c] = ui.Muted.Render(cellEmpty)
+			}
+		}
+	}
+
+	// Ghost piece.
+	ghostR := m.ghostRow()
+	ghostStyle := lipgloss.NewStyle().Foreground(ui.ColorMuted).Faint(true)
+	for _, pos := range Cells(m.current.shape()) {
+		r := ghostR + pos[0]
+		c := m.current.col + pos[1]
+		if r >= 0 && r < boardRows && c >= 0 && c < boardCols && !m.board[r][c].filled {
+			grid[r][c] = ghostStyle.Render(cellGhost)
+		}
+	}
+
+	// Active piece (drawn on top of ghost).
+	activeColor := pieceColor[m.current.pt]
+	activeStyle := lipgloss.NewStyle().Foreground(activeColor)
+	for _, pos := range Cells(m.current.shape()) {
+		r := m.current.row + pos[0]
+		c := m.current.col + pos[1]
+		if r >= 0 && r < boardRows && c >= 0 && c < boardCols {
+			grid[r][c] = activeStyle.Render(cellFull)
+		}
+	}
+
+	// Render rows to string.
+	var sb strings.Builder
+	borderStyle := ui.Border
+	for r := 0; r < boardRows; r++ {
+		sb.WriteString(strings.Join(grid[r][:], ""))
+		if r < boardRows-1 {
+			sb.WriteByte('\n')
+		}
+	}
+	return borderStyle.Render(sb.String())
+}
+
+func (m *Model) renderSide() string {
+	nextLabel := ui.Subtitle.Render("next")
+	nextPiece := m.renderMiniPiece(m.next)
+
+	stats := fmt.Sprintf("%s\n%d\n\n%s\n%d\n\n%s\n%d",
+		ui.Subtitle.Render("score"), m.score,
+		ui.Subtitle.Render("level"), m.level,
+		ui.Subtitle.Render("lines"), m.lines,
+	)
+
+	help := ui.Muted.Render("←→  move\n↑/x  rotate CW\nz    rotate CCW\n↓   soft drop\nspc  hard drop\nq    quit")
+
+	return lipgloss.JoinVertical(lipgloss.Left,
+		nextLabel,
+		nextPiece,
+		"",
+		stats,
+		"",
+		help,
+	)
+}
+
+func (m *Model) renderMiniPiece(pt PieceType) string {
+	s := Rotation(pt, 0)
+	color := pieceColor[pt]
+	style := lipgloss.NewStyle().Foreground(color)
+
+	var sb strings.Builder
+	for r := 0; r < 4; r++ {
+		for c := 0; c < 4; c++ {
+			if s[r][c] {
+				sb.WriteString(style.Render(cellFull))
+			} else {
+				sb.WriteString(cellEmpty)
+			}
+		}
+		if r < 3 {
+			sb.WriteByte('\n')
+		}
+	}
+	return sb.String()
 }
