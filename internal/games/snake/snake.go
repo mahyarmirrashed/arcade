@@ -3,7 +3,21 @@ package snake
 import (
 	"math/rand/v2"
 	"slices"
+	"time"
 )
+
+// Speed: each step waits interval(score), which shrinks by speedup per food
+// eaten until it reaches minInterval.
+const (
+	baseInterval = 150 * time.Millisecond
+	speedup      = 5 * time.Millisecond
+	minInterval  = 60 * time.Millisecond
+)
+
+// interval is how long the snake waits between steps at the given score.
+func interval(score int) time.Duration {
+	return max(baseInterval-time.Duration(score)*speedup, minInterval)
+}
 
 // point is a cell on the board. x grows rightwards and y grows downwards.
 type point struct{ x, y int }
@@ -76,7 +90,7 @@ type board struct {
 // newBoard returns a board with a three-cell snake in the middle, heading right.
 func newBoard(cols, rows int, rng *rand.Rand) board {
 	head := point{cols / 2, rows / 2}
-	return board{
+	b := board{
 		cols:  cols,
 		rows:  rows,
 		body:  []point{head, head.add(point{-1, 0}), head.add(point{-2, 0})},
@@ -84,6 +98,8 @@ func newBoard(cols, rows int, rng *rand.Rand) board {
 		next:  right,
 		alive: true,
 	}
+	b.placeFood(rng)
+	return b
 }
 
 // turn sets the direction of the next step. Reversing into the snake's own
@@ -96,7 +112,8 @@ func (b *board) turn(d direction) {
 	b.next = d
 }
 
-// step advances the snake one cell, ending the game on a wall or body hit.
+// step advances the snake one cell. Eating food grows the snake by keeping
+// its tail; hitting a wall or the body ends the game.
 func (b *board) step(rng *rand.Rand) {
 	if !b.alive || b.won {
 		return
@@ -109,11 +126,39 @@ func (b *board) step(rng *rand.Rand) {
 		return
 	}
 
-	// The tail moves out of the way this step, so its cell is free to enter.
-	if slices.Contains(b.body[:len(b.body)-1], head) {
+	// Unless the snake is growing, the tail moves out of the way this step,
+	// so its cell is free to enter.
+	grow := head == b.food
+	occupied := b.body
+	if !grow {
+		occupied = b.body[:len(b.body)-1]
+	}
+	if slices.Contains(occupied, head) {
 		b.alive = false
 		return
 	}
 
-	b.body = append([]point{head}, b.body[:len(b.body)-1]...)
+	b.body = append([]point{head}, occupied...)
+	if grow {
+		b.score++
+		b.placeFood(rng)
+	}
+}
+
+// placeFood puts food on a random empty cell. With no empty cell left the
+// board is full and the player has won.
+func (b *board) placeFood(rng *rand.Rand) {
+	var empty []point
+	for y := range b.rows {
+		for x := range b.cols {
+			if p := (point{x, y}); !slices.Contains(b.body, p) {
+				empty = append(empty, p)
+			}
+		}
+	}
+	if len(empty) == 0 {
+		b.won = true
+		return
+	}
+	b.food = empty[rng.IntN(len(empty))]
 }

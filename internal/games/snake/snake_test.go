@@ -4,6 +4,7 @@ import (
 	"math/rand/v2"
 	"slices"
 	"testing"
+	"time"
 )
 
 // testRand returns a deterministic random source so tests are repeatable.
@@ -169,5 +170,86 @@ func TestTurn_twoQuickPressesCannotReverse(t *testing.T) {
 	b.step(testRand())
 	if !b.alive {
 		t.Error("snake died; the reversal should have been ignored")
+	}
+}
+
+func TestNewBoard_placesFoodOffTheSnake(t *testing.T) {
+	for seed := range uint64(50) {
+		b := newBoard(10, 8, rand.New(rand.NewPCG(seed, seed)))
+
+		if slices.Contains(b.body, b.food) {
+			t.Fatalf("seed %d: food %v placed on snake %v", seed, b.food, b.body)
+		}
+		if b.food.x < 0 || b.food.x >= b.cols || b.food.y < 0 || b.food.y >= b.rows {
+			t.Fatalf("seed %d: food %v outside %dx%d board", seed, b.food, b.cols, b.rows)
+		}
+	}
+}
+
+func TestStep_eatingGrowsAndScores(t *testing.T) {
+	b := heading(10, 10, right, point{5, 5}, point{4, 5}, point{3, 5})
+	b.food = point{6, 5}
+	b.step(testRand())
+
+	want := []point{{6, 5}, {5, 5}, {4, 5}, {3, 5}}
+	if !slices.Equal(b.body, want) {
+		t.Errorf("body = %v; want %v (tail kept)", b.body, want)
+	}
+	if b.score != 1 {
+		t.Errorf("score = %d; want 1", b.score)
+	}
+	if b.food == (point{6, 5}) || slices.Contains(b.body, b.food) {
+		t.Errorf("food = %v; want a new cell off the snake", b.food)
+	}
+}
+
+func TestPlaceFood_onlyEmptyCellChosen(t *testing.T) {
+	// A 2x2 board with three cells taken leaves exactly one place for food.
+	b := heading(2, 2, right, point{0, 0}, point{1, 0}, point{1, 1})
+	b.placeFood(testRand())
+
+	if b.food != (point{0, 1}) {
+		t.Errorf("food = %v; want {0 1}", b.food)
+	}
+}
+
+func TestStep_fillingTheBoardWins(t *testing.T) {
+	// A 2x2 board: eating the last free cell leaves nowhere for food.
+	b := heading(2, 2, left, point{1, 1}, point{1, 0}, point{0, 0})
+	b.food = point{0, 1}
+	b.step(testRand())
+
+	if !b.won {
+		t.Error("won = false; want true")
+	}
+	if !b.alive {
+		t.Error("alive = false; want true")
+	}
+	if len(b.body) != 4 {
+		t.Errorf("len(body) = %d; want 4", len(b.body))
+	}
+
+	b.step(testRand())
+	if got := b.body[0]; got != (point{0, 1}) {
+		t.Errorf("head = %v after winning; want it to stay at {0 1}", got)
+	}
+}
+
+func TestInterval_speedsUpThenLevelsOff(t *testing.T) {
+	tests := []struct {
+		score int
+		want  time.Duration
+	}{
+		{0, 150 * time.Millisecond},
+		{1, 145 * time.Millisecond},
+		{10, 100 * time.Millisecond},
+		{18, 60 * time.Millisecond},
+		{19, 60 * time.Millisecond},
+		{1000, 60 * time.Millisecond},
+	}
+	for _, tt := range tests {
+		if got := interval(tt.score); got != tt.want {
+			t.Errorf("interval(%d) = %v; want %v", tt.score, got, tt.want)
+		}
 	}
 }
