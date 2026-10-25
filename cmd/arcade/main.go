@@ -15,6 +15,7 @@ import (
 	"github.com/charmbracelet/wish"
 
 	"github.com/mahyarmirrashed/arcade/internal/game"
+	"github.com/mahyarmirrashed/arcade/internal/games/snake"
 	"github.com/mahyarmirrashed/arcade/internal/games/tetris"
 	"github.com/mahyarmirrashed/arcade/internal/root"
 	"github.com/mahyarmirrashed/arcade/internal/server"
@@ -28,6 +29,7 @@ const (
 func main() {
 	reg := game.NewRegistry(
 		&tetris.Model{},
+		&snake.Model{},
 	)
 
 	s, err := server.New(handler(reg),
