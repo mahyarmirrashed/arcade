@@ -374,7 +374,21 @@ func (m *Model) renderBoard() string {
 	return m.styles.Border.Render(board)
 }
 
+// indicator returns a 1-line bright reversed "▼" indicator if active, else blank.
+func (m *Model) indicator(active bool) string {
+	if active {
+		return m.styles.NewStyle().
+			Width(cardW).
+			Align(lipgloss.Center).
+			Reverse(true).
+			Bold(true).
+			Render("▼")
+	}
+	return strings.Repeat(" ", cardW)
+}
+
 // renderTopRow renders: foundations (4) + gap + stock + waste.
+// Each card is preceded by a 1-line indicator to align with tableau columns.
 func (m *Model) renderTopRow() string {
 	parts := make([]string, 0, 10)
 
@@ -388,11 +402,8 @@ func (m *Model) renderTopRow() string {
 		} else {
 			card = renderCard(*f.top(), cursor || sel, m.styles)
 		}
-		if cursor {
-			card = m.styles.NewStyle().BorderStyle(lipgloss.RoundedBorder()).
-				BorderForeground(ui.ColorText).Render(card)
-		}
-		parts = append(parts, card)
+		col := lipgloss.JoinVertical(lipgloss.Left, m.indicator(cursor), card)
+		parts = append(parts, col)
 		if i < 3 {
 			parts = append(parts, " ")
 		}
@@ -408,11 +419,7 @@ func (m *Model) renderTopRow() string {
 	} else {
 		stockCard = renderBack(m.styles)
 	}
-	if stockCursor {
-		stockCard = m.styles.NewStyle().BorderStyle(lipgloss.RoundedBorder()).
-			BorderForeground(ui.ColorText).Render(stockCard)
-	}
-	parts = append(parts, stockCard, " ")
+	parts = append(parts, lipgloss.JoinVertical(lipgloss.Left, m.indicator(stockCursor), stockCard), " ")
 
 	// Waste
 	wasteCursor := m.cursor == cursorWaste
@@ -423,11 +430,7 @@ func (m *Model) renderTopRow() string {
 	} else {
 		wasteCard = renderCard(*m.waste.top(), wasteCursor || wasteSel, m.styles)
 	}
-	if wasteCursor {
-		wasteCard = m.styles.NewStyle().BorderStyle(lipgloss.RoundedBorder()).
-			BorderForeground(ui.ColorText).Render(wasteCard)
-	}
-	parts = append(parts, wasteCard)
+	parts = append(parts, lipgloss.JoinVertical(lipgloss.Left, m.indicator(wasteCursor), wasteCard))
 
 	return lipgloss.JoinHorizontal(lipgloss.Top, parts...)
 }
@@ -442,52 +445,65 @@ func (m *Model) renderTableau() string {
 }
 
 // renderTableauCol renders a single tableau column as a vertical stack of cards.
-// Face-down cards overlap heavily; only the top portion is shown.
-// Face-up cards are stacked with a visible portion showing rank+suit.
+// Face-down cards overlap: only the very first gets a top border; subsequent
+// face-down cards show no top border, avoiding a wall of repeated ┌────┐ lines.
+// Face-up cards show their top 2 lines (border + rank/suit row).
+// The cursor column gets a bright "> col N <" header above it.
 func (m *Model) renderTableauCol(col int) string {
 	p := &m.tableau[col]
 	cursor := m.cursor == col
 	selFrom := m.sel != nil && m.sel.fromCursor == col
 
-	if len(p.cards) == 0 {
-		e := renderEmpty(m.styles)
-		if cursor {
-			e = m.styles.NewStyle().BorderStyle(lipgloss.RoundedBorder()).
-				BorderForeground(ui.ColorText).Render(e)
-		}
-		return e
+	// Cursor indicator: a bright reversed label above the column.
+	indicator := strings.Repeat(" ", cardW) // blank spacer when not cursor
+	if cursor {
+		label := m.styles.NewStyle().
+			Width(cardW).
+			Align(lipgloss.Center).
+			Reverse(true).
+			Bold(true).
+			Render("▼")
+		indicator = label
 	}
 
-	// Build lines by overlapping cards - each card except the last shows only
-	// its top 1 line (for face-down) or top 2 lines (for face-up).
+	if len(p.cards) == 0 {
+		e := renderEmpty(m.styles)
+		return lipgloss.JoinVertical(lipgloss.Left, indicator, e)
+	}
+
+	// Build lines by overlapping cards.
 	var lines []string
+	prevFaceDown := false
 	for i, c := range p.cards {
 		isLast := i == len(p.cards)-1
-		selected := (cursor || selFrom) && m.sel != nil && i >= m.sel.fromIdx
+		selected := selFrom && m.sel != nil && i >= m.sel.fromIdx
 		cardStr := renderCard(c, selected, m.styles)
 		cardLines := strings.Split(cardStr, "\n")
 
 		if isLast {
-			lines = append(lines, cardLines...)
+			// Last card: show all 4 lines, but if it follows a face-down card
+			// suppress the redundant top border.
+			if !c.FaceUp && prevFaceDown {
+				lines = append(lines, cardLines[1:]...)
+			} else {
+				lines = append(lines, cardLines...)
+			}
 		} else if c.FaceUp {
-			// Show top 2 lines of face-up cards.
+			// Face-up non-last: show top 2 lines (border + rank row).
 			lines = append(lines, cardLines[:2]...)
+			prevFaceDown = false
 		} else {
-			// Show only the top line of face-down cards.
-			lines = append(lines, cardLines[0])
+			// Face-down non-last: show only the top border for the first one,
+			// nothing for subsequent face-down cards (they're invisible tabs).
+			if !prevFaceDown {
+				lines = append(lines, cardLines[0])
+			}
+			prevFaceDown = true
 		}
 	}
 
-	result := strings.Join(lines, "\n")
-	if cursor && m.sel == nil {
-		// Highlight the cursor column with a subtle left border.
-		result = m.styles.NewStyle().
-			BorderStyle(lipgloss.NormalBorder()).
-			BorderLeft(true).
-			BorderForeground(ui.ColorText).
-			Render(result)
-	}
-	return result
+	col_content := strings.Join(lines, "\n")
+	return lipgloss.JoinVertical(lipgloss.Left, indicator, col_content)
 }
 
 // interleave inserts sep between each element.
