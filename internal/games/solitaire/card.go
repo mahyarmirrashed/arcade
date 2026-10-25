@@ -138,11 +138,8 @@ func cardBorderLine(tl, tr, left, right string, styles ui.Styles, cardStyle lipg
 		borderStyle.Render(tr)
 }
 
-// Card background colours.
-var (
-	bgCard = lipgloss.Color("235") // dark grey - face-up card surface
-	bgBack = lipgloss.Color("17")  // dark navy - face-down card back
-)
+// bgCard is the background colour for both face-up and face-down cards.
+var bgCard = lipgloss.Color("235") // dark grey
 
 // renderCard returns a 6-wide x 4-tall string for the card.
 // selected highlights the border.
@@ -153,8 +150,8 @@ func renderCard(c Card, selected bool, styles ui.Styles) string {
 	}
 
 	if !c.FaceUp {
-		borderStyle := styles.NewStyle().Foreground(borderColor).Background(bgBack)
-		fill := styles.NewStyle().Foreground(ui.ColorMuted).Background(bgBack).Render("▒▒▒▒")
+		borderStyle := styles.NewStyle().Foreground(borderColor).Background(bgCard)
+		fill := styles.NewStyle().Foreground(ui.ColorMuted).Background(bgCard).Render("▒▒▒▒")
 		midBack := borderStyle.Render("│") + fill + borderStyle.Render("│")
 		return strings.Join([]string{
 			borderStyle.Render("┌────┐"),
@@ -199,8 +196,8 @@ func renderEmpty(styles ui.Styles) string {
 
 // renderBack returns a 6x4 face-down card (for the stock pile).
 func renderBack(styles ui.Styles) string {
-	borderStyle := styles.NewStyle().Foreground(ui.ColorSubtle).Background(bgBack)
-	fill := styles.NewStyle().Foreground(ui.ColorMuted).Background(bgBack).Render("▒▒▒▒")
+	borderStyle := styles.NewStyle().Foreground(ui.ColorSubtle).Background(bgCard)
+	fill := styles.NewStyle().Foreground(ui.ColorMuted).Background(bgCard).Render("▒▒▒▒")
 	midBack := borderStyle.Render("│") + fill + borderStyle.Render("│")
 	return strings.Join([]string{
 		borderStyle.Render("┌────┐"),
