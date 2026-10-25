@@ -2,6 +2,7 @@ package lobby_test
 
 import (
 	"io"
+	"strings"
 	"testing"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -108,5 +109,26 @@ func TestLobby_quitKeyBinding(t *testing.T) {
 	quitBinding := key.NewBinding(key.WithKeys("q", "ctrl+c"))
 	if !key.Matches(qKey, quitBinding) {
 		t.Error("q should match quit binding")
+	}
+}
+
+func TestView_rendersWithSessionStyles(t *testing.T) {
+	// The server's own renderer has no colour; the player's terminal does.
+	prev := lipgloss.ColorProfile()
+	lipgloss.SetColorProfile(termenv.Ascii)
+	t.Cleanup(func() { lipgloss.SetColorProfile(prev) })
+
+	r := lipgloss.NewRenderer(io.Discard)
+	r.SetColorProfile(termenv.ANSI256)
+	reg := game.NewRegistry(stubGame{name: "Alpha"}, stubGame{name: "Beta"})
+
+	colour := lobby.New(80, 24, reg, ui.NewStyles(r)).View()
+	plain := lobby.New(80, 24, reg, testStyles()).View()
+
+	if !strings.Contains(colour, "\x1b[") {
+		t.Error("256-colour session rendered no colour codes")
+	}
+	if strings.Contains(plain, "\x1b[") {
+		t.Error("no-colour session rendered colour codes")
 	}
 }

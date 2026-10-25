@@ -31,20 +31,20 @@ func (i item) Description() string { return i.g.Description() }
 func (i item) FilterValue() string { return i.g.Name() }
 
 // newDelegate returns a single-line delegate styled monochromatically.
-func newDelegate() list.DefaultDelegate {
+func newDelegate(styles ui.Styles) list.DefaultDelegate {
 	d := list.NewDefaultDelegate()
 
 	d.ShowDescription = false
 	d.SetHeight(1)
 	d.SetSpacing(0)
 
-	d.Styles.SelectedTitle = lipgloss.NewStyle().
+	d.Styles.SelectedTitle = styles.NewStyle().
 		Border(lipgloss.NormalBorder(), false, false, false, true).
 		BorderForeground(ui.ColorText).
 		Foreground(ui.ColorText).
 		Bold(true).
 		Padding(0, 0, 0, 1)
-	d.Styles.NormalTitle = lipgloss.NewStyle().
+	d.Styles.NormalTitle = styles.NewStyle().
 		Foreground(ui.ColorSubtle).
 		Padding(0, 0, 0, 2)
 
@@ -94,7 +94,7 @@ func New(width, height int, reg *game.Registry, styles ui.Styles) Model {
 	}
 
 	lh := listHeight(height)
-	l := list.New(items, newDelegate(), listWidth, lh)
+	l := list.New(items, newDelegate(styles), listWidth, lh)
 
 	// No title — we render it ourselves in View.
 	l.SetShowTitle(false)
@@ -146,11 +146,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View implements tea.Model.
 func (m Model) View() string {
-	title   := ui.Title.Render("arcade")
-	tagline := ui.Muted.Render(appTagline)
-	desc    := ui.Subtitle.Render(m.selectedDescription())
+	title   := m.styles.Title.Render("arcade")
+	tagline := m.styles.Muted.Render(appTagline)
+	desc    := m.styles.Subtitle.Render(m.selectedDescription())
 	items   := m.list.View()
-	help    := ui.Muted.Render("↑/↓  navigate   enter  select   q  quit")
+	help    := m.styles.Muted.Render("↑/↓  navigate   enter  select   q  quit")
 
 	content := lipgloss.JoinVertical(lipgloss.Left,
 		title,
