@@ -247,3 +247,81 @@ func TestUpdate_restartIgnoredMidGame(t *testing.T) {
 		t.Error("cmd != nil; want nil")
 	}
 }
+
+func TestUpdate_pause(t *testing.T) {
+	for _, key := range []tea.KeyMsg{runeKey("p"), {Type: tea.KeySpace}} {
+		t.Run(key.String(), func(t *testing.T) {
+			m := newModel(80, 24, testRand())
+			head := m.board.body[0]
+			gen := m.gen
+
+			_, cmd := m.Update(key)
+
+			if !m.paused {
+				t.Fatal("paused = false; want true")
+			}
+			if cmd != nil {
+				t.Error("cmd != nil; want no tick while paused")
+			}
+			m.Update(tickMsg{gen: gen})
+			m.Update(tickMsg{gen: m.gen})
+			if got := m.board.body[0]; got != head {
+				t.Errorf("head = %v; want unchanged %v while paused", got, head)
+			}
+		})
+	}
+}
+
+func TestUpdate_resume(t *testing.T) {
+	m := newModel(80, 24, testRand())
+	m.Update(runeKey("p"))
+	gen := m.gen
+
+	_, cmd := m.Update(runeKey("p"))
+
+	if m.paused {
+		t.Fatal("paused = true; want false")
+	}
+	if cmd == nil {
+		t.Error("cmd = nil; want ticking to resume")
+	}
+	if m.gen == gen {
+		t.Error("gen unchanged; a tick from before the pause would double the speed")
+	}
+}
+
+func TestUpdate_pausedIgnoresTurns(t *testing.T) {
+	m := newModel(80, 24, testRand())
+	m.Update(runeKey("p"))
+
+	m.Update(tea.KeyMsg{Type: tea.KeyUp})
+
+	if m.board.next != right {
+		t.Errorf("next = %v; want right (turns ignored while paused)", m.board.next)
+	}
+}
+
+func TestUpdate_pauseIgnoredWhenGameOver(t *testing.T) {
+	m := newModel(80, 24, testRand())
+	m.board.alive = false
+
+	m.Update(runeKey("p"))
+
+	if m.paused {
+		t.Error("paused = true; want false once the game is over")
+	}
+}
+
+func TestUpdate_resizeUnpauses(t *testing.T) {
+	m := newModel(80, 24, testRand())
+	m.Update(runeKey("p"))
+
+	_, cmd := m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+
+	if m.paused {
+		t.Error("paused = true; want a fresh, running game after resize")
+	}
+	if cmd == nil {
+		t.Error("cmd = nil; want a tick for the new game")
+	}
+}

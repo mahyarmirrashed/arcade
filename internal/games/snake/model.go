@@ -47,6 +47,7 @@ type Model struct {
 	rng      *rand.Rand
 	gen      int
 	tooSmall bool
+	paused   bool
 }
 
 // newModel returns a game sized to the terminal, drawing food positions from rng.
@@ -65,6 +66,7 @@ func (m *Model) resize(width, height int) {
 // reset starts a new game, invalidating any ticks still in flight.
 func (m *Model) reset() {
 	m.gen++
+	m.paused = false
 	cols, rows, ok := gridSize(m.width, m.height)
 	m.tooSmall = !ok
 	if ok {
@@ -78,7 +80,7 @@ func (m *Model) playing() bool {
 
 // tick schedules the next step for the current game.
 func (m *Model) tick() tea.Cmd {
-	if !m.playing() {
+	if !m.playing() || m.paused {
 		return nil
 	}
 	gen := m.gen
@@ -119,29 +121,48 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.resize(msg.Width, msg.Height)
 		return m, m.tick()
 	case tickMsg:
-		if msg.gen != m.gen || !m.playing() {
+		if msg.gen != m.gen || !m.playing() || m.paused {
 			return m, nil
 		}
 		m.board.step(m.rng)
 		return m, m.tick()
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "q", "ctrl+c":
-			return m, quit()
-		case "r":
-			if !m.tooSmall && !m.playing() {
-				m.reset()
-				return m, m.tick()
-			}
-		case "up", "k":
-			m.board.turn(up)
-		case "down", "j":
-			m.board.turn(down)
-		case "left", "h":
-			m.board.turn(left)
-		case "right", "l":
-			m.board.turn(right)
-		}
+		return m, m.handleKey(msg)
 	}
 	return m, nil
+}
+
+func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
+	switch msg.String() {
+	case "q", "ctrl+c":
+		return quit()
+	case "r":
+		if !m.tooSmall && !m.playing() {
+			m.reset()
+			return m.tick()
+		}
+	case "p", " ":
+		if m.playing() {
+			// Pausing or resuming invalidates the tick in flight, so a quick
+			// pause and resume can't leave two tick chains running.
+			m.paused = !m.paused
+			m.gen++
+			return m.tick()
+		}
+	case "up", "k":
+		m.steer(up)
+	case "down", "j":
+		m.steer(down)
+	case "left", "h":
+		m.steer(left)
+	case "right", "l":
+		m.steer(right)
+	}
+	return nil
+}
+
+func (m *Model) steer(d direction) {
+	if !m.paused {
+		m.board.turn(d)
+	}
 }

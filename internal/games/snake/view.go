@@ -53,9 +53,14 @@ func (m *Model) header(width int) string {
 // footer lists the keys that do something right now. Hints are dropped from
 // the front until the rest fit within width, so small boards don't wrap.
 func (m *Model) footer(width int) string {
-	hints := []string{"arrows/hjkl  move", "q  quit"}
-	if !m.playing() {
+	var hints []string
+	switch {
+	case !m.playing():
 		hints = []string{"r  restart", "q  quit"}
+	case m.paused:
+		hints = []string{"p  resume", "q  quit"}
+	default:
+		hints = []string{"arrows/hjkl  move", "p  pause", "q  quit"}
 	}
 	line := strings.Join(hints, "    ")
 	for len(hints) > 1 && lipgloss.Width(line) > width {
@@ -72,6 +77,8 @@ func (m *Model) status() string {
 		return ui.Accent.Render("you win!")
 	case !m.board.alive:
 		return ui.Error.Render("game over")
+	case m.paused:
+		return ui.Subtitle.Render("paused")
 	}
 	return ""
 }

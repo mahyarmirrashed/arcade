@@ -13,4 +13,4 @@ snake                  score 3
 │                            │
 │                            │
 └────────────────────────────┘
-arrows/hjkl  move    q  quit  
+p  pause    q  quit           

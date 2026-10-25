@@ -21,4 +21,4 @@ snake                                                                    score 0
 │                                                                              │
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
-arrows/hjkl  move    q  quit                                                    
+arrows/hjkl  move    p  pause    q  quit                                        

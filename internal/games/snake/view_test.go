@@ -73,3 +73,9 @@ func TestView_wideTerminalShowsMoveHint(t *testing.T) {
 func TestView_smallestBoardDropsMoveHint(t *testing.T) {
 	checkGolden(t, "smallest", newModel(22, 14, testRand()).View())
 }
+
+func TestView_paused(t *testing.T) {
+	m := midGame()
+	m.paused = true
+	checkGolden(t, "paused", m.View())
+}
