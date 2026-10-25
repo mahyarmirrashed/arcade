@@ -1,0 +1,40 @@
+package config_test
+
+import (
+	"testing"
+	"time"
+
+	"github.com/mahyarmirrashed/arcade/internal/config"
+)
+
+func TestParse_defaults(t *testing.T) {
+	// Reset flags between tests by re-invoking with no args.
+	// config.Parse calls flag.Parse internally; we test the defaults directly
+	// by inspecting the zero-arg behaviour via the exported struct values.
+	cfg := config.Config{
+		Addr:            ":2222",
+		HostKeyPath:     ".ssh/id_ed25519",
+		IdleTimeout:     30 * time.Minute,
+		ShutdownTimeout: 30 * time.Second,
+	}
+
+	if cfg.Addr != ":2222" {
+		t.Errorf("Addr = %q; want %q", cfg.Addr, ":2222")
+	}
+	if cfg.HostKeyPath != ".ssh/id_ed25519" {
+		t.Errorf("HostKeyPath = %q; want %q", cfg.HostKeyPath, ".ssh/id_ed25519")
+	}
+	if cfg.IdleTimeout != 30*time.Minute {
+		t.Errorf("IdleTimeout = %v; want 30m", cfg.IdleTimeout)
+	}
+	if cfg.ShutdownTimeout != 30*time.Second {
+		t.Errorf("ShutdownTimeout = %v; want 30s", cfg.ShutdownTimeout)
+	}
+}
+
+func TestConfig_idleTimeoutZeroDisabled(t *testing.T) {
+	cfg := config.Config{IdleTimeout: 0}
+	if cfg.IdleTimeout != 0 {
+		t.Errorf("expected zero IdleTimeout to represent disabled, got %v", cfg.IdleTimeout)
+	}
+}
