@@ -9,15 +9,15 @@ ssh -p 2222 <host>
 ## Running
 
 ```
-go run ./cmd/arcade        # lobby on :2222
-go run ./cmd/snake         # standalone snake on :2223 (dev)
+go run ./cmd/arcade        # lobby on 127.0.0.1:2222
+go run ./cmd/snake         # standalone snake on 127.0.0.1:2223 (dev)
 ```
 
 Both binaries accept the following flags:
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--addr` | `:2222` / `:2223` | address to listen on |
+| `--addr` | `127.0.0.1:2222` / `127.0.0.1:2223` | address to listen on; pass e.g. `--addr :2222` to accept connections from other machines |
 | `--host-key` | `.ssh/id_ed25519` | path to ed25519 host key |
 | `--idle-timeout` | `30m` | disconnect idle sessions (`0` = disabled) |
 | `--shutdown-timeout` | `30s` | graceful shutdown window |
