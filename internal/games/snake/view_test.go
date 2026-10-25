@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
 
@@ -147,5 +148,15 @@ func TestRenderGrid_coloursEachSegment(t *testing.T) {
 	}
 	if code := "38;5;" + string(foodColor(&m.board)); !strings.Contains(grid, code) {
 		t.Errorf("grid has no %q for the food", code)
+	}
+}
+
+func TestView_tooSmallMidGameAsksForBoardSize(t *testing.T) {
+	// The 28x20 board started at 80x24 needs 80x24 to be shown again.
+	m := newModel(80, 24, testRand(), testStyles())
+	m.Update(tea.WindowSizeMsg{Width: 70, Height: 24})
+
+	if v := m.View(); !strings.Contains(v, "resize to at least 80x24") {
+		t.Errorf("view does not ask for the board's size:\n%s", v)
 	}
 }

@@ -1,7 +1,6 @@
 package snake
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -71,7 +70,8 @@ func gridSize(termW, termH int) (cols, rows int, ok bool) {
 // bottom-aligned.
 func (m *Model) View() string {
 	if m.tooSmall {
-		return m.place(m.tooSmallView())
+		w, h := m.minSize()
+		return m.styles.TooSmall(m.width, m.height, w, h)
 	}
 
 	// The border adds a row below the board's cells; padding the side panels
@@ -177,13 +177,12 @@ func (m *Model) renderGrid() string {
 	return lipgloss.JoinVertical(lipgloss.Left, lines...)
 }
 
-func (m *Model) tooSmallView() string {
-	minW := minCols*cellWidth + chromeWidth()
-	minH := minRows + titleH + borderH
-	return lipgloss.JoinVertical(lipgloss.Left,
-		m.styles.Title.Render("snake"),
-		"",
-		m.styles.Error.Render(" terminal too small "),
-		m.styles.Muted.Render(fmt.Sprintf("resize to at least %dx%d", minW, minH)),
-	)
+// minSize is the smallest terminal that can show the current game, or the
+// smallest board if there is no game yet.
+func (m *Model) minSize() (width, height int) {
+	cols, rows := minCols, minRows
+	if m.hasGame() {
+		cols, rows = m.board.cols, m.board.rows
+	}
+	return cols*cellWidth + chromeWidth(), rows + titleH + borderH
 }

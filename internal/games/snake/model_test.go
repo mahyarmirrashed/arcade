@@ -139,27 +139,6 @@ func TestUpdate_keysSteer(t *testing.T) {
 	}
 }
 
-func TestUpdate_resizeResets(t *testing.T) {
-	m := newModel(80, 24, testRand(), testStyles())
-	m.board.score = 5
-	gen := m.gen
-
-	_, cmd := m.Update(tea.WindowSizeMsg{Width: 120, Height: 30})
-
-	if m.board.score != 0 {
-		t.Errorf("score = %d; want 0 after reset", m.board.score)
-	}
-	if m.board.cols != maxCols || m.board.rows != maxRows {
-		t.Errorf("board = %dx%d; want %dx%d", m.board.cols, m.board.rows, maxCols, maxRows)
-	}
-	if m.gen == gen {
-		t.Error("gen unchanged; old ticks would keep the previous game running")
-	}
-	if cmd == nil {
-		t.Error("cmd = nil; want a tick for the new game")
-	}
-}
-
 func TestUpdate_sameSizeKeepsGame(t *testing.T) {
 	// Wish sends the starting size again once the session opens.
 	m := newModel(80, 24, testRand(), testStyles())
@@ -172,19 +151,6 @@ func TestUpdate_sameSizeKeepsGame(t *testing.T) {
 	}
 	if cmd != nil {
 		t.Error("cmd != nil; the existing tick chain is still running")
-	}
-}
-
-func TestUpdate_resizeTooSmallStopsTicking(t *testing.T) {
-	m := newModel(80, 24, testRand(), testStyles())
-
-	_, cmd := m.Update(tea.WindowSizeMsg{Width: 20, Height: 10})
-
-	if !m.tooSmall {
-		t.Error("tooSmall = false; want true")
-	}
-	if cmd != nil {
-		t.Error("cmd != nil; want no ticking while too small")
 	}
 }
 
@@ -312,20 +278,6 @@ func TestUpdate_pauseIgnoredWhenGameOver(t *testing.T) {
 	}
 }
 
-func TestUpdate_resizeUnpauses(t *testing.T) {
-	m := newModel(80, 24, testRand(), testStyles())
-	m.Update(runeKey("p"))
-
-	_, cmd := m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
-
-	if m.paused {
-		t.Error("paused = true; want a fresh, running game after resize")
-	}
-	if cmd == nil {
-		t.Error("cmd = nil; want a tick for the new game")
-	}
-}
-
 func TestUpdate_tickFromEarlierGameIgnored(t *testing.T) {
 	// In the arcade, leaving Snake and starting it again creates a new Model
 	// while the old one's tick may still be in flight. Both start at the same
@@ -341,5 +293,110 @@ func TestUpdate_tickFromEarlierGameIgnored(t *testing.T) {
 	}
 	if cmd != nil {
 		t.Error("cmd != nil; another game's tick must not start a second chain")
+	}
+}
+
+func TestUpdate_resizeKeepsGame(t *testing.T) {
+	m := newModel(80, 24, testRand(), testStyles())
+	m.board.score = 5
+	head := m.board.body[0]
+	gen := m.gen
+
+	_, cmd := m.Update(tea.WindowSizeMsg{Width: 120, Height: 30})
+
+	if m.board.score != 5 || m.board.body[0] != head {
+		t.Errorf("score, head = %d, %v; want the game kept (5, %v)", m.board.score, m.board.body[0], head)
+	}
+	if m.board.cols != 28 || m.board.rows != 20 {
+		t.Errorf("board = %dx%d; want it kept at 28x20 until the next game", m.board.cols, m.board.rows)
+	}
+	if m.tooSmall || m.paused || m.gen != gen {
+		t.Errorf("tooSmall, paused, gen changed = %v, %v, %v; want the game running on", m.tooSmall, m.paused, m.gen != gen)
+	}
+	if cmd != nil {
+		t.Error("cmd != nil; the existing tick chain is still running")
+	}
+}
+
+func TestUpdate_shrinkingBelowBoardPauses(t *testing.T) {
+	// A 28x20 board needs 80 columns; 70 can't show it.
+	m := newModel(80, 24, testRand(), testStyles())
+	m.board.score = 5
+	gen := m.gen
+
+	_, cmd := m.Update(tea.WindowSizeMsg{Width: 70, Height: 24})
+
+	if !m.tooSmall || !m.paused {
+		t.Errorf("tooSmall, paused = %v, %v; want true, true", m.tooSmall, m.paused)
+	}
+	if m.gen == gen {
+		t.Error("gen unchanged; the tick in flight would move the snake while it can't be seen")
+	}
+	if cmd != nil {
+		t.Error("cmd != nil; want no ticking while too small")
+	}
+	if m.board.score != 5 {
+		t.Errorf("score = %d; want 5 (game kept)", m.board.score)
+	}
+}
+
+func TestUpdate_growingBackLeavesGamePaused(t *testing.T) {
+	m := newModel(80, 24, testRand(), testStyles())
+	m.board.score = 5
+	m.Update(tea.WindowSizeMsg{Width: 70, Height: 24})
+
+	_, cmd := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+
+	if m.tooSmall {
+		t.Error("tooSmall = true; want false once the board fits again")
+	}
+	if !m.paused || cmd != nil {
+		t.Error("game resumed by itself; want it to wait for p")
+	}
+	if _, cmd := m.Update(runeKey("p")); cmd == nil {
+		t.Error("p did not resume the game")
+	}
+	if m.board.score != 5 {
+		t.Errorf("score = %d; want 5 (game kept)", m.board.score)
+	}
+}
+
+func TestUpdate_resizeWhilePausedStaysPaused(t *testing.T) {
+	m := newModel(80, 24, testRand(), testStyles())
+	m.Update(runeKey("p"))
+
+	_, cmd := m.Update(tea.WindowSizeMsg{Width: 120, Height: 30})
+
+	if !m.paused || cmd != nil {
+		t.Error("resize unpaused the game; want it to stay paused")
+	}
+}
+
+func TestUpdate_startsGameOnceTerminalFits(t *testing.T) {
+	m := newModel(20, 10, testRand(), testStyles())
+
+	_, cmd := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+
+	if m.tooSmall || !m.board.alive {
+		t.Fatalf("tooSmall, alive = %v, %v; want a new game", m.tooSmall, m.board.alive)
+	}
+	if m.board.cols != 28 || m.board.rows != 20 {
+		t.Errorf("board = %dx%d; want 28x20", m.board.cols, m.board.rows)
+	}
+	if cmd == nil {
+		t.Error("cmd = nil; want the new game to start ticking")
+	}
+}
+
+func TestUpdate_restartSizesBoardToTerminal(t *testing.T) {
+	m := newModel(80, 24, testRand(), testStyles())
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 30})
+	m.board.alive = false
+
+	m.Update(runeKey("r"))
+
+	if m.board.cols != maxCols || m.board.rows != maxRows {
+		t.Errorf("board = %dx%d; want the new game sized to the terminal, %dx%d",
+			m.board.cols, m.board.rows, maxCols, maxRows)
 	}
 }

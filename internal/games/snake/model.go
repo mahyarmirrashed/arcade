@@ -42,21 +42,44 @@ func newModel(width, height int, rng *rand.Rand, styles ui.Styles) *Model {
 	return m
 }
 
-// resize records the terminal size and starts a new game that fits it.
-func (m *Model) resize(width, height int) {
+// resize records the terminal size. A game in progress keeps its board; if
+// the board no longer fits, the game pauses until the terminal is big enough
+// again. With no game yet, one starts as soon as the terminal fits.
+func (m *Model) resize(width, height int) tea.Cmd {
 	m.width, m.height = width, height
-	m.reset()
+	if !m.hasGame() {
+		m.reset()
+		return m.tick()
+	}
+	m.tooSmall = !m.boardFits()
+	if m.tooSmall && m.board.alive && !m.board.won && !m.paused {
+		// Pause so the snake doesn't move while the player can't see it.
+		m.paused = true
+		m.gen++
+	}
+	return nil
 }
 
-// reset starts a new game, invalidating any ticks still in flight.
+// reset starts a new game sized to the terminal, invalidating any ticks still
+// in flight. If the terminal is too small there is no game until it grows.
 func (m *Model) reset() {
 	m.gen++
 	m.paused = false
 	cols, rows, ok := gridSize(m.width, m.height)
 	m.tooSmall = !ok
+	m.board = board{}
 	if ok {
 		m.board = newBoard(cols, rows, m.rng)
 	}
+}
+
+func (m *Model) hasGame() bool { return len(m.board.body) > 0 }
+
+// boardFits reports whether the current board, with the panels around it,
+// fits in the terminal.
+func (m *Model) boardFits() bool {
+	return m.width >= m.board.cols*cellWidth+chromeWidth() &&
+		m.height >= m.board.rows+titleH+borderH
 }
 
 func (m *Model) playing() bool {
@@ -106,8 +129,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.Width == m.width && msg.Height == m.height {
 			return m, nil
 		}
-		m.resize(msg.Width, msg.Height)
-		return m, m.tick()
+		return m, m.resize(msg.Width, msg.Height)
 	case tickMsg:
 		if msg.owner != m || msg.gen != m.gen || !m.playing() || m.paused {
 			return m, nil
