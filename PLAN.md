@@ -337,7 +337,7 @@ compile and accept SSH connections.
   unranked guests. Fingerprints are never displayed.
 - **Rules:** best score (2048, Snake, Tetris; earlier score wins ties),
   longest win streak then fewest guesses per win (Wordle), fastest win
-  (Minesweeper). Snake's board is fixed at 28×20 so scores are comparable.
+  (Minesweeper, Solitaire; timed from the first move). Snake's board is fixed at 28×20 so scores are comparable.
 - **Storage:** `internal/leaderboard`, one JSON file at
   `<data-dir>/leaderboard.json`, rewritten atomically (temp file + rename,
   mode 0600) after every change, guarded by a mutex. Only `cmd/arcade` opens
