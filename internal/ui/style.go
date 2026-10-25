@@ -32,7 +32,7 @@ var Spectrum = []lipgloss.Color{
 
 // Styles are the shared styles for one SSH session. They are built from that
 // session's renderer, so colours follow the player's terminal rather than the
-// server's. Over SSH, get the renderer from wish's bubbletea.MakeRenderer.
+// server's. Over SSH, get the renderer from server.Renderer.
 type Styles struct {
 	r *lipgloss.Renderer
 
