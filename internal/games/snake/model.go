@@ -13,28 +13,6 @@ import (
 // Compile-time check: Model must satisfy game.Game.
 var _ game.Game = (*Model)(nil)
 
-// Board layout. Each cell is drawn two characters wide so it looks square in
-// a terminal, where characters are about twice as tall as they are wide.
-const (
-	cellWidth = 2
-	borderW   = 2 // left and right border columns
-	borderH   = 2 // top and bottom border rows
-	headerH   = 1
-	footerH   = 1
-
-	minCols, minRows = 10, 10
-	// The board is capped so huge terminals don't make the game sluggish.
-	maxCols, maxRows = 40, 20
-)
-
-// gridSize returns how many cells fit in a terminal of the given size, capped
-// at maxCols x maxRows. ok is false when the terminal is too small to play.
-func gridSize(termW, termH int) (cols, rows int, ok bool) {
-	cols = min((termW-borderW)/cellWidth, maxCols)
-	rows = min(termH-borderH-headerH-footerH, maxRows)
-	return cols, rows, cols >= minCols && rows >= minRows
-}
-
 // tickMsg advances the game one step. owner and gen tie it to the game that
 // scheduled it, so ticks left over from an earlier session or from before a
 // reset are dropped instead of running a second tick chain.

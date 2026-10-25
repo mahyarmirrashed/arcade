@@ -17,12 +17,14 @@ func TestGridSize(t *testing.T) {
 		wantCols, wantRows int
 		wantOK             bool
 	}{
-		{"standard 80x24", 80, 24, 39, 20, true},
+		// The help panel, side panel, gaps and border take 24 columns; the
+		// title, blank line and border take 4 rows.
+		{"standard 80x24", 80, 24, 28, 20, true},
 		{"capped when huge", 200, 60, maxCols, maxRows, true},
-		{"smallest playable", 22, 14, 10, 10, true},
-		{"one column short", 21, 14, 9, 10, false},
-		{"one row short", 22, 13, 10, 9, false},
-		{"zero size", 0, 0, -1, -4, false},
+		{"smallest playable", 44, 14, 10, 10, true},
+		{"one column short", 43, 14, 9, 10, false},
+		{"one row short", 44, 13, 10, 9, false},
+		{"zero size", 0, 0, -12, -4, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -46,8 +48,8 @@ func TestNew_sizesBoardToTerminal(t *testing.T) {
 	if m.tooSmall {
 		t.Fatal("tooSmall = true; want false")
 	}
-	if m.board.cols != 39 || m.board.rows != 20 {
-		t.Errorf("board = %dx%d; want 39x20", m.board.cols, m.board.rows)
+	if m.board.cols != 28 || m.board.rows != 20 {
+		t.Errorf("board = %dx%d; want 28x20", m.board.cols, m.board.rows)
 	}
 	if m.Init() == nil {
 		t.Error("Init() = nil; want a tick command")
@@ -142,7 +144,7 @@ func TestUpdate_resizeResets(t *testing.T) {
 	m.board.score = 5
 	gen := m.gen
 
-	_, cmd := m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	_, cmd := m.Update(tea.WindowSizeMsg{Width: 120, Height: 30})
 
 	if m.board.score != 0 {
 		t.Errorf("score = %d; want 0 after reset", m.board.score)
