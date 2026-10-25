@@ -93,10 +93,6 @@ func (m *Model) tick() tea.Cmd {
 	})
 }
 
-// quit ends the session. It is the one place to change when Snake should
-// return to the lobby instead.
-func quit() tea.Cmd { return tea.Quit }
-
 // — game.Game implementation —
 
 // Name implements game.Game.
@@ -136,10 +132,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// handleKey applies a key press. q and ctrl+c are intentionally not handled:
+// the root model intercepts them and returns the player to the lobby.
 func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 	switch msg.String() {
-	case "q", "ctrl+c":
-		return quit()
 	case "r":
 		if !m.tooSmall && !m.playing() {
 			m.reset()

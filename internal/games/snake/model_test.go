@@ -186,18 +186,16 @@ func TestUpdate_resizeTooSmallStopsTicking(t *testing.T) {
 	}
 }
 
-func TestUpdate_quit(t *testing.T) {
+func TestUpdate_quitKeysLeftToRoot(t *testing.T) {
+	// The root model (or cmd/snake's wrapper) owns q and ctrl+c.
 	for _, key := range []tea.KeyMsg{runeKey("q"), {Type: tea.KeyCtrlC}} {
 		t.Run(key.String(), func(t *testing.T) {
 			m := newModel(80, 24, testRand())
 
 			_, cmd := m.Update(key)
 
-			if cmd == nil {
-				t.Fatal("cmd = nil; want quit")
-			}
-			if _, ok := cmd().(tea.QuitMsg); !ok {
-				t.Errorf("cmd() = %T; want tea.QuitMsg", cmd())
+			if cmd != nil {
+				t.Errorf("cmd() = %T; want nil", cmd())
 			}
 		})
 	}
