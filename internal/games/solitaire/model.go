@@ -472,13 +472,10 @@ func (m *Model) renderTableauCol(col int) string {
 	}
 
 	// Build lines by overlapping cards.
-	// - face-down non-last: first in run shows top border ┌────┐,
-	//   subsequent ones show a middle row │▒▒▒▒│ (depth visible, no repeated corners).
+	// - face-down non-last: show only the top border line (┌────┐).
 	// - face-up non-last: show top 2 lines (border + rank/suit row).
 	// - last card: show all 4 lines.
 	var lines []string
-	prevFaceDown := false
-	backMid := "│" + m.styles.NewStyle().Foreground(ui.ColorMuted).Render("▒▒▒▒") + "│"
 	for i, c := range p.cards {
 		isLast := i == len(p.cards)-1
 		selected := selFrom && m.sel != nil && i >= m.sel.fromIdx
@@ -489,14 +486,8 @@ func (m *Model) renderTableauCol(col int) string {
 			lines = append(lines, cardLines...)
 		} else if c.FaceUp {
 			lines = append(lines, cardLines[:2]...)
-			prevFaceDown = false
 		} else {
-			if !prevFaceDown {
-				lines = append(lines, cardLines[0]) // ┌────┐ once
-			} else {
-				lines = append(lines, backMid) // │▒▒▒▒│ for depth
-			}
-			prevFaceDown = true
+			lines = append(lines, cardLines[0])
 		}
 	}
 

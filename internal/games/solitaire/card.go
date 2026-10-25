@@ -138,6 +138,12 @@ func cardBorderLine(tl, tr, left, right string, styles ui.Styles, cardStyle lipg
 		borderStyle.Render(tr)
 }
 
+// Card background colours.
+var (
+	bgCard = lipgloss.Color("235") // dark grey - face-up card surface
+	bgBack = lipgloss.Color("17")  // dark navy - face-down card back
+)
+
 // renderCard returns a 6-wide x 4-tall string for the card.
 // selected highlights the border.
 func renderCard(c Card, selected bool, styles ui.Styles) string {
@@ -145,16 +151,11 @@ func renderCard(c Card, selected bool, styles ui.Styles) string {
 	if selected {
 		borderColor = ui.ColorText
 	}
-	borderStyle := styles.NewStyle().Foreground(borderColor)
-	if selected {
-		borderStyle = borderStyle.Bold(true)
-	}
-
-	mid := "│" + strings.Repeat(" ", innerW) + "│"
 
 	if !c.FaceUp {
-		fill := styles.NewStyle().Foreground(ui.ColorMuted).Render("▒▒▒▒")
-		midBack := "│" + fill + "│"
+		borderStyle := styles.NewStyle().Foreground(borderColor).Background(bgBack)
+		fill := styles.NewStyle().Foreground(ui.ColorMuted).Background(bgBack).Render("▒▒▒▒")
+		midBack := borderStyle.Render("│") + fill + borderStyle.Render("│")
 		return strings.Join([]string{
 			borderStyle.Render("┌────┐"),
 			midBack,
@@ -163,9 +164,17 @@ func renderCard(c Card, selected bool, styles ui.Styles) string {
 		}, "\n")
 	}
 
+	borderStyle := styles.NewStyle().Foreground(borderColor).Background(bgCard)
+	if selected {
+		borderStyle = borderStyle.Bold(true)
+	}
+
+	midStyle := styles.NewStyle().Background(bgCard)
+	mid := borderStyle.Render("│") + midStyle.Render(strings.Repeat(" ", innerW)) + borderStyle.Render("│")
+
 	rank := c.Rank.String()
 	suit := suitSymbol[c.Suit]
-	cardStyle := styles.NewStyle().Foreground(c.color())
+	cardStyle := styles.NewStyle().Foreground(c.color()).Background(bgCard)
 	if selected {
 		cardStyle = cardStyle.Bold(true)
 	}
@@ -190,9 +199,9 @@ func renderEmpty(styles ui.Styles) string {
 
 // renderBack returns a 6x4 face-down card (for the stock pile).
 func renderBack(styles ui.Styles) string {
-	fill := styles.NewStyle().Foreground(ui.ColorMuted).Render("▒▒▒▒")
-	borderStyle := styles.NewStyle().Foreground(ui.ColorSubtle)
-	midBack := "│" + fill + "│"
+	borderStyle := styles.NewStyle().Foreground(ui.ColorSubtle).Background(bgBack)
+	fill := styles.NewStyle().Foreground(ui.ColorMuted).Background(bgBack).Render("▒▒▒▒")
+	midBack := borderStyle.Render("│") + fill + borderStyle.Render("│")
 	return strings.Join([]string{
 		borderStyle.Render("┌────┐"),
 		midBack,
