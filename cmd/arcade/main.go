@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	addr    = ":2222"
+	addr    = "127.0.0.1:2222"
 	hostKey = ".ssh/id_ed25519"
 )
 
