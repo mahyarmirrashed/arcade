@@ -114,10 +114,10 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) updateLobby(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// q / ctrl+c in the lobby quits the program.
+	// esc / ctrl+c in the lobby quits the program.
 	if km, ok := msg.(tea.KeyMsg); ok {
 		switch km.String() {
-		case "q", "ctrl+c":
+		case "esc", "ctrl+c":
 			return m, tea.Quit
 		}
 	}

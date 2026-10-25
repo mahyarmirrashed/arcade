@@ -189,7 +189,7 @@ func (m Model) View() string {
 	}
 
 	items := m.list.View()
-	help  := m.styles.Muted.Render("↑/↓  navigate   enter  select   q  quit")
+	help  := m.styles.Muted.Render("↑/↓ to navigate · enter to select · esc to quit")
 
 	content := lipgloss.JoinVertical(lipgloss.Left,
 		title,

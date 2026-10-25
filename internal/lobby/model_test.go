@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
@@ -105,14 +104,6 @@ func TestLobby_windowResizeUpdatesDimensions(t *testing.T) {
 	}
 }
 
-// Verify keys binding is correct (compile-time + runtime sanity).
-func TestLobby_quitKeyBinding(t *testing.T) {
-	qKey := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")}
-	quitBinding := key.NewBinding(key.WithKeys("q", "ctrl+c"))
-	if !key.Matches(qKey, quitBinding) {
-		t.Error("q should match quit binding")
-	}
-}
 
 func TestView_rendersWithSessionStyles(t *testing.T) {
 	// The server's own renderer has no colour; the player's terminal does.
