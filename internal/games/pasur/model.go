@@ -372,8 +372,12 @@ func (m *Model) renderBoard() string {
 	// Opponent's hand (face-down).
 	oppRow := m.renderOppHand(s.oppHandSize)
 
-	// Pool.
-	poolRow := m.renderPool(s.pool, s.captureOpts)
+	// Pool: only highlight captures for the player whose turn it is.
+	var captureOpts [][]int
+	if s.turn == m.seat {
+		captureOpts = s.captureOpts
+	}
+	poolRow := m.renderPool(s.pool, captureOpts)
 
 	// My hand.
 	myRow := m.renderMyHand(s.myHand, s.selectedCard)
