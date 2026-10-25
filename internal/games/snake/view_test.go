@@ -2,6 +2,7 @@ package snake
 
 import (
 	"flag"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,7 +17,9 @@ import (
 var update = flag.Bool("update", false, "rewrite the golden files in testdata/")
 
 func TestMain(m *testing.M) {
-	// Render without colour so the golden files are plain text.
+	// The server's own renderer has no colour in tests, so any colour in the
+	// output must come from the session's styles. testStyles has no colour
+	// either, which keeps the golden files plain text.
 	lipgloss.SetColorProfile(termenv.Ascii)
 	os.Exit(m.Run())
 }
@@ -128,10 +131,11 @@ func TestFoodColor_isTheSegmentItAdds(t *testing.T) {
 }
 
 func TestRenderGrid_coloursEachSegment(t *testing.T) {
-	lipgloss.SetColorProfile(termenv.ANSI256)
-	t.Cleanup(func() { lipgloss.SetColorProfile(termenv.Ascii) })
-
+	r := lipgloss.NewRenderer(io.Discard)
+	r.SetColorProfile(termenv.ANSI256)
 	m := midGame()
+	m.styles = ui.NewStyles(r)
+
 	grid := m.renderGrid()
 
 	// midGame's snake has three body segments behind the head.

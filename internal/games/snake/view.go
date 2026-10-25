@@ -41,8 +41,6 @@ const (
 	foodCell  = "()"
 )
 
-var headStyle = lipgloss.NewStyle().Foreground(ui.ColorText)
-
 // spectrumIndex is the position in ui.Spectrum of body segment i, counting
 // the neck as 1, so the colours run through the spectrum from neck to tail.
 func spectrumIndex(i int) int { return (i - 1) % len(ui.Spectrum) }
@@ -78,10 +76,10 @@ func (m *Model) View() string {
 
 	// The border adds a row below the board's cells; padding the side panels
 	// by one row lines their last line up with the board's last row of cells.
-	pad := lipgloss.NewStyle().PaddingBottom(1)
+	pad := m.styles.NewStyle().PaddingBottom(1)
 	gap := strings.Repeat(" ", gapW)
 	boardWithTitle := lipgloss.JoinVertical(lipgloss.Left,
-		ui.Title.Render("snake"),
+		m.styles.Title.Render("snake"),
 		"",
 		m.renderBoard(),
 	)
@@ -101,18 +99,18 @@ func (m *Model) place(content string) string {
 func (m *Model) renderHelp() string {
 	lines := make([]string, len(helpLines))
 	for i, l := range helpLines {
-		lines[i] = ui.Muted.Render(l)
+		lines[i] = m.styles.Muted.Render(l)
 	}
 	return lipgloss.JoinVertical(lipgloss.Left, lines...)
 }
 
 func (m *Model) renderSide() string {
 	return lipgloss.JoinVertical(lipgloss.Left,
-		ui.Subtitle.Render("score"),
-		ui.Accent.Render(strconv.Itoa(m.board.score)),
+		m.styles.Subtitle.Render("score"),
+		m.styles.Accent.Render(strconv.Itoa(m.board.score)),
 		"",
-		ui.Subtitle.Render("length"),
-		ui.Accent.Render(strconv.Itoa(len(m.board.body))),
+		m.styles.Subtitle.Render("length"),
+		m.styles.Accent.Render(strconv.Itoa(len(m.board.body))),
 	)
 }
 
@@ -120,11 +118,11 @@ func (m *Model) renderSide() string {
 func (m *Model) status() string {
 	switch {
 	case m.board.won:
-		return ui.Accent.Render("you win")
+		return m.styles.Accent.Render("you win")
 	case !m.board.alive:
-		return ui.Error.Render(" game over ")
+		return m.styles.Error.Render(" game over ")
 	case m.paused:
-		return ui.Subtitle.Render("paused")
+		return m.styles.Subtitle.Render("paused")
 	}
 	return ""
 }
@@ -140,16 +138,16 @@ func (m *Model) renderBoard() string {
 			lipgloss.WithWhitespaceChars(" "),
 		)
 	}
-	return ui.Border.Render(inner)
+	return m.styles.Border.Render(inner)
 }
 
 func (m *Model) renderGrid() string {
 	b := &m.board
-	head := headStyle.Render(snakeCell)
-	food := lipgloss.NewStyle().Foreground(foodColor(b)).Render(foodCell)
+	head := m.styles.NewStyle().Foreground(ui.ColorText).Render(snakeCell)
+	food := m.styles.NewStyle().Foreground(foodColor(b)).Render(foodCell)
 	bodies := make([]string, len(ui.Spectrum))
 	for k, c := range ui.Spectrum {
-		bodies[k] = lipgloss.NewStyle().Foreground(c).Render(snakeCell)
+		bodies[k] = m.styles.NewStyle().Foreground(c).Render(snakeCell)
 	}
 
 	segment := make(map[point]int, len(b.body))
@@ -183,9 +181,9 @@ func (m *Model) tooSmallView() string {
 	minW := minCols*cellWidth + chromeWidth()
 	minH := minRows + titleH + borderH
 	return lipgloss.JoinVertical(lipgloss.Left,
-		ui.Title.Render("snake"),
+		m.styles.Title.Render("snake"),
 		"",
-		ui.Error.Render(" terminal too small "),
-		ui.Muted.Render(fmt.Sprintf("resize to at least %dx%d", minW, minH)),
+		m.styles.Error.Render(" terminal too small "),
+		m.styles.Muted.Render(fmt.Sprintf("resize to at least %dx%d", minW, minH)),
 	)
 }
