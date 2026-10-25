@@ -1,7 +1,12 @@
 // Command snake is the standalone Snake SSH server used during parallel
 // development. It bypasses the lobby and drops players directly into Snake.
 //
-// Connect with: ssh -p 2223 localhost
+// Flags:
+//
+//	--addr          address to listen on          (default :2223)
+//	--host-key      path to ed25519 host key      (default .ssh/id_ed25519)
+//	--idle-timeout  disconnect idle sessions       (default 30m, 0 = disabled)
+//	--shutdown-timeout  graceful shutdown window   (default 30s)
 package main
 
 import (
@@ -9,27 +14,29 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/log"
 	"github.com/charmbracelet/ssh"
 	"github.com/charmbracelet/wish"
 
+	"github.com/mahyarmirrashed/arcade/internal/config"
 	"github.com/mahyarmirrashed/arcade/internal/games/snake"
 	"github.com/mahyarmirrashed/arcade/internal/server"
 )
 
-const (
-	addr    = "127.0.0.1:2223"
-	hostKey = ".ssh/id_ed25519"
-)
-
 func main() {
-	s, err := server.New(handler,
-		wish.WithAddress(addr),
-		wish.WithHostKeyPath(hostKey),
-	)
+	cfg := config.Parse(":2223", ".ssh/id_ed25519")
+
+	opts := []ssh.Option{
+		wish.WithAddress(cfg.Addr),
+		wish.WithHostKeyPath(cfg.HostKeyPath),
+	}
+	if cfg.IdleTimeout > 0 {
+		opts = append(opts, wish.WithIdleTimeout(cfg.IdleTimeout))
+	}
+
+	s, err := server.New(handler, opts...)
 	if err != nil {
 		log.Fatal("could not create server", "error", err)
 	}
@@ -37,7 +44,7 @@ func main() {
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
-	log.Info("starting snake server", "addr", addr)
+	log.Info("starting snake server", "addr", cfg.Addr)
 	go func() {
 		if err := s.ListenAndServe(); err != nil && err != ssh.ErrServerClosed {
 			log.Fatal("server error", "error", err)
@@ -45,9 +52,9 @@ func main() {
 	}()
 
 	<-done
-	log.Info("shutting down")
+	log.Info("shutting down", "timeout", cfg.ShutdownTimeout)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
 	defer cancel()
 
 	if err := s.Shutdown(ctx); err != nil {
