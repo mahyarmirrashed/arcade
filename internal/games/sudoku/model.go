@@ -42,7 +42,7 @@ var keys = keyMap{
 	left:  key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "left")),
 	right: key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "right")),
 	clear: key.NewBinding(key.WithKeys("0", "backspace"), key.WithHelp("0/⌫", "clear")),
-	quit:  key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
+	quit:  key.NewBinding(key.WithKeys("esc", "ctrl+c"), key.WithHelp("esc", "quit")),
 }
 
 // Model is the Bubbletea model for Sudoku.
@@ -351,6 +351,6 @@ func (m *Model) renderHelp() string {
 		line("1-9   place"),
 		line("0/⌫   clear"),
 		line("r     new game"),
-		line("q     quit"),
+		line("esc   quit"),
 	)
 }

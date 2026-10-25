@@ -51,7 +51,7 @@ var keys = keyMap{
 	pick:  key.NewBinding(key.WithKeys("enter", " "), key.WithHelp("enter", "pick/place")),
 	auto:  key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "auto")),
 	draw:  key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "draw")),
-	quit:  key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
+	quit:  key.NewBinding(key.WithKeys("esc", "ctrl+c"), key.WithHelp("esc", "quit")),
 }
 
 // selection holds a grabbed sequence of cards and where they came from.
@@ -558,6 +558,6 @@ func (m *Model) renderHelp() string {
 		line("a    auto-foundation"),
 		line("d    draw"),
 		line("r    restart"),
-		line("q    quit"),
+		line("esc  quit"),
 	)
 }

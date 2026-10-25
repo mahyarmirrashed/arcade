@@ -20,5 +20,5 @@
 hjkl move     │                                                        │  0     
 p    pause    │                                                        │        
 r    restart  │                                                        │  length
-q    quit     │                                                        │  3     
+esc  quit     │                                                        │  3     
               └────────────────────────────────────────────────────────┘        

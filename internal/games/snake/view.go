@@ -30,7 +30,7 @@ var helpLines = []string{
 	"hjkl move",
 	"p    pause",
 	"r    restart",
-	"q    quit",
+	"esc  quit",
 }
 
 // Cell glyphs, each cellWidth characters wide.

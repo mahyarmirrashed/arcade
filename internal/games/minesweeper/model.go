@@ -42,7 +42,7 @@ var keys = keyMap{
 	right:  key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "right")),
 	reveal: key.NewBinding(key.WithKeys("enter", " "), key.WithHelp("enter/spc", "reveal")),
 	flag:   key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "flag")),
-	quit:   key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
+	quit:   key.NewBinding(key.WithKeys("esc", "ctrl+c"), key.WithHelp("esc", "quit")),
 }
 
 // Model is the Bubbletea model for Minesweeper.
@@ -292,6 +292,6 @@ func (m *Model) renderHelp() string {
 		line("enter  reveal"),
 		line("f      flag"),
 		line("r      restart"),
-		line("q      quit"),
+		line("esc    quit"),
 	)
 }

@@ -21,7 +21,7 @@ type keyMap struct {
 }
 
 var keys = keyMap{
-	quit: key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
+	quit: key.NewBinding(key.WithKeys("esc", "ctrl+c"), key.WithHelp("esc", "quit")),
 }
 
 // state is the game phase.
@@ -322,7 +322,7 @@ func (m *Model) renderHelp() string {
 		line("⌫    delete"),
 		line("enter  guess"),
 		line("r    restart"),
-		line("q    quit"),
+		line("esc  quit"),
 		"",
 		m.styles.Muted.Render("green  = correct"),
 		m.styles.Muted.Render("yellow = wrong place"),

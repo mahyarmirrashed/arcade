@@ -56,7 +56,7 @@ var keys = keyMap{
 	softDrop:  key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "soft drop")),
 	hardDrop:  key.NewBinding(key.WithKeys(" "), key.WithHelp("space", "hard drop")),
 	hold:      key.NewBinding(key.WithKeys("c"), key.WithHelp("c", "hold")),
-	quit:      key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
+	quit:      key.NewBinding(key.WithKeys("esc", "ctrl+c"), key.WithHelp("esc", "quit")),
 }
 
 // piece tracks the active falling piece.
@@ -456,7 +456,7 @@ func (m *Model) renderHelp() string {
 		line("spc  hard drop"),
 		line("c    hold"),
 		line("r    restart"),
-		line("q    quit"),
+		line("esc  quit"),
 	)
 }
 

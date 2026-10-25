@@ -136,10 +136,10 @@ func (m Model) updateLobby(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) updatePlaying(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// q or ctrl+c while in a game returns to the lobby.
+	// esc or ctrl+c while in a game returns to the lobby.
 	if km, ok := msg.(tea.KeyMsg); ok {
 		switch km.String() {
-		case "q", "ctrl+c":
+		case "esc", "ctrl+c":
 			m.state = stateLobby
 			m.active = nil
 			// Re-send the window size so the lobby re-layouts.

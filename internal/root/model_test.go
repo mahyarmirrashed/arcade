@@ -65,7 +65,7 @@ func TestRoot_selectMsgTransitionsToPlaying(t *testing.T) {
 func TestRoot_quitFromGameReturnsToLobby(t *testing.T) {
 	m := newTestRoot()
 	m = update(m, lobby.SelectMsg{Game: stubGame{name: "Stub"}})
-	m = update(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	m = update(m, tea.KeyMsg{Type: tea.KeyEsc})
 	if m.State() != root.StateLobby {
 		t.Errorf("state after quit = %v; want StateLobby", m.State())
 	}

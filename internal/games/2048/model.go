@@ -30,7 +30,7 @@ var keys = keyMap{
 	down:  key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "down")),
 	left:  key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "left")),
 	right: key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "right")),
-	quit:  key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
+	quit:  key.NewBinding(key.WithKeys("esc", "ctrl+c"), key.WithHelp("esc", "quit")),
 }
 
 // state tracks game phase.
@@ -302,6 +302,6 @@ func (m *Model) renderHelp() string {
 		line("←/h  left"),
 		line("→/l  right"),
 		line("r    restart"),
-		line("q    quit"),
+		line("esc  quit"),
 	)
 }

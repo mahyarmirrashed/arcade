@@ -39,7 +39,7 @@ var keys = keyMap{
 	left:  key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "prev card")),
 	right: key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "next card")),
 	pick:  key.NewBinding(key.WithKeys("enter", " "), key.WithHelp("enter", "select/play")),
-	quit:  key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
+	quit:  key.NewBinding(key.WithKeys("esc", "ctrl+c"), key.WithHelp("esc", "quit")),
 }
 
 // Model is the per-player Bubbletea model for Pasur.
@@ -313,7 +313,7 @@ func (m *Model) viewWaiting() string {
 		"",
 		m.styles.Muted.Render("waiting for opponent to join..."),
 		"",
-		m.styles.Muted.Render("j to join a room instead · q to quit"),
+		m.styles.Muted.Render("j to join a room instead · esc to quit"),
 	)
 	return lines
 }
@@ -332,7 +332,7 @@ func (m *Model) viewJoining() string {
 		"",
 		notice,
 		"",
-		m.styles.Muted.Render("enter to join · esc to go back · q to quit"),
+		m.styles.Muted.Render("enter to join · esc to go back"),
 	)
 }
 
@@ -483,7 +483,7 @@ func (m *Model) renderHelp() string {
 	return lipgloss.JoinVertical(lipgloss.Left,
 		line("←→   select card"),
 		line("enter  play"),
-		line("q     quit"),
+		line("esc   quit"),
 	)
 }
 
@@ -505,7 +505,7 @@ func (m *Model) viewOver() string {
 		"",
 		fmt.Sprintf("you %d  ·  opponent %d", s.myScore, s.oppScore),
 		"",
-		m.styles.Muted.Render("r to play again · q to quit"),
+		m.styles.Muted.Render("r to play again · esc to quit"),
 	)
 }
 
