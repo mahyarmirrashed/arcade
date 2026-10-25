@@ -200,6 +200,11 @@ func (m Model) View() string {
 		help,
 	)
 
+	// Show a notice rather than letting Bubble Tea clip the lobby.
+	if w, h := lipgloss.Size(content); w > m.width || h > m.height {
+		return m.styles.TooSmall(m.width, m.height, w, h)
+	}
+
 	return lipgloss.Place(
 		m.width, m.height,
 		lipgloss.Center, lipgloss.Center,

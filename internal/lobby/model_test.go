@@ -132,3 +132,19 @@ func TestView_rendersWithSessionStyles(t *testing.T) {
 		t.Error("no-colour session rendered colour codes")
 	}
 }
+
+func TestView_tooSmallTerminalShowsNotice(t *testing.T) {
+	m := newTestModel(stubGame{name: "Alpha"})
+
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 30, Height: 10})
+	small := next.(lobby.Model).View()
+	next, _ = next.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	normal := next.(lobby.Model).View()
+
+	if !strings.Contains(small, "terminal too small") {
+		t.Errorf("30x10 view does not say the terminal is too small:\n%s", small)
+	}
+	if strings.Contains(normal, "terminal too small") || !strings.Contains(normal, "Alpha") {
+		t.Errorf("80x24 view after growing back should list the games:\n%s", normal)
+	}
+}
