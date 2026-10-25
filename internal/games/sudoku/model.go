@@ -320,22 +320,25 @@ func (m *Model) dataRow(r int) string {
 }
 
 func (m *Model) topBorder() string {
-	return m.hBorder(cornerTL, topT, cornerTR, thickH)
+	return m.hBorder(cornerTL, topT, cornerTR, thickH, topThin)
 }
 
 func (m *Model) bottomBorder() string {
-	return m.hBorder(cornerBL, botT, cornerBR, thickH)
+	return m.hBorder(cornerBL, botT, cornerBR, thickH, botThin)
 }
 
 func (m *Model) thickMidBorder() string {
-	return m.hBorder(leftT, crossTT, rightT, thickH)
+	return m.hBorder(leftT, crossTT, rightT, thickH, topThin)
 }
 
 func (m *Model) thinMidBorder() string {
-	return m.hBorder(leftThin, crossTtV, rightThin, thinH)
+	return m.hBorder(leftThin, crossTtV, rightThin, thinH, crossTt)
 }
 
-func (m *Model) hBorder(left, mid, right, horiz string) string {
+// hBorder renders a horizontal border line.
+// thinJunction is the character used where a thin internal column line meets
+// the horizontal border (e.g. ┯ on top, ┷ on bottom, ┼ within a box).
+func (m *Model) hBorder(left, mid, right, horiz, thinJunction string) string {
 	thick := m.thickVertStyle()
 	thin := m.vertStyle()
 	var sb strings.Builder
@@ -347,11 +350,7 @@ func (m *Model) hBorder(left, mid, right, horiz string) string {
 		} else if (c+1)%3 == 0 {
 			sb.WriteString(thick.Render(mid))
 		} else {
-			if horiz == thickH {
-				sb.WriteString(thick.Render(topThin))
-			} else {
-				sb.WriteString(thin.Render(crossTt))
-			}
+			sb.WriteString(thin.Render(thinJunction))
 		}
 	}
 	return sb.String()
