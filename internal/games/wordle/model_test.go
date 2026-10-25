@@ -6,6 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/mahyarmirrashed/arcade/internal/game"
 	"github.com/mahyarmirrashed/arcade/internal/ui"
 )
 
@@ -290,5 +291,52 @@ func TestModel_growingBackShowsBoard(t *testing.T) {
 
 	if v := m.View(); strings.Contains(v, "terminal too small") || !strings.Contains(v, "wordle") {
 		t.Errorf("80x24 view should show the game again:\n%s", v)
+	}
+}
+
+func guess(m *Model, word string) tea.Cmd {
+	for _, ch := range word {
+		m.handleKey(keyMsg(string(ch)))
+	}
+	return m.handleKey(keyMsgSpecial("enter"))
+}
+
+func TestModel_winReportsGuessesUsed(t *testing.T) {
+	m := newTestModel()
+	guess(m, "storm")
+	guess(m, "storm")
+
+	cmd := guess(m, "crane")
+
+	want := game.ResultMsg{Game: "wordle", Ranking: game.ByStreak, Result: game.Result{Won: true, Guesses: 3}}
+	if cmd == nil || cmd() != want {
+		t.Errorf("cmd() = %v; want %#v", cmd, want)
+	}
+}
+
+func TestModel_lossReportsALoss(t *testing.T) {
+	m := newTestModel()
+	var cmd tea.Cmd
+	for range maxGuess {
+		if cmd != nil {
+			t.Fatal("result reported before the last guess")
+		}
+		cmd = guess(m, "storm")
+	}
+
+	want := game.ResultMsg{Game: "wordle", Ranking: game.ByStreak, Result: game.Result{}}
+	if cmd == nil || cmd() != want {
+		t.Errorf("cmd() = %v; want %#v", cmd, want)
+	}
+}
+
+func TestModel_standingAppearsAtGameOver(t *testing.T) {
+	m := newTestModel()
+	guess(m, "crane")
+
+	m.Update(game.StandingMsg{Standing: game.Standing{Ranked: true, NewBest: true, Rank: 1, Of: 2}})
+
+	if v := m.View(); !strings.Contains(v, "new best! #1/2") {
+		t.Errorf("game-over view doesn't show the standing:\n%s", v)
 	}
 }

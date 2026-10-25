@@ -14,7 +14,7 @@ import (
 )
 
 // Compile-time check: Model must satisfy game.Game.
-var _ game.Game = (*Model)(nil)
+var _ game.Ranked = (*Model)(nil)
 
 type keyMap struct {
 	quit key.Binding
@@ -45,12 +45,17 @@ type Model struct {
 	height  int
 	rng     *rand.Rand
 	styles  ui.Styles
+
+	standing *game.Standing // where the finished game placed, once known
 }
 
 // - game.Game implementation -
 
 func (m *Model) Name() string        { return "Wordle" }
 func (m *Model) Description() string { return "guess the five-letter word" }
+
+// Ranking implements game.Ranked.
+func (m *Model) Ranking() game.Ranking { return game.ByStreak }
 
 func (m *Model) New(width, height int, styles ui.Styles) tea.Model {
 	return newModel(width, height, styles)
@@ -88,8 +93,22 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		return m, m.handleKey(msg)
+	case game.StandingMsg:
+		if m.state != statePlaying {
+			s := msg.Standing
+			m.standing = &s
+		}
 	}
 	return m, nil
+}
+
+// finished reports whether the ended game was won, and in how many guesses.
+func (m *Model) finished() tea.Cmd {
+	var res game.Result
+	if m.state == stateWon {
+		res = game.Result{Won: true, Guesses: m.current + 1}
+	}
+	return game.Finished(m, res)
 }
 
 func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
@@ -112,6 +131,9 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 		}
 	case "enter":
 		m.submitGuess()
+		if m.state != statePlaying {
+			return m.finished()
+		}
 	default:
 		// Accept a-z only.
 		if len(msg.String()) == 1 {
@@ -270,6 +292,10 @@ func (m *Model) renderBoard() string {
 		overlay = m.styles.Error.Render(" you got it! ")
 	case stateLost:
 		overlay = m.styles.Error.Render(" " + strings.ToUpper(m.answer) + " ")
+	}
+	if overlay != "" && m.standing != nil {
+		overlay = lipgloss.JoinVertical(lipgloss.Center,
+			overlay, "", m.styles.Muted.Render(m.standing.String()))
 	}
 	if overlay != "" {
 		w := lipgloss.Width(inner)
