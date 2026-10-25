@@ -128,6 +128,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return m, quit()
+		case "r":
+			if !m.tooSmall && !m.playing() {
+				m.reset()
+				return m, m.tick()
+			}
 		case "up", "k":
 			m.board.turn(up)
 		case "down", "j":

@@ -202,3 +202,48 @@ func TestUpdate_quit(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdate_restart(t *testing.T) {
+	tests := []struct {
+		name  string
+		setup func(*board)
+	}{
+		{"after game over", func(b *board) { b.alive = false }},
+		{"after winning", func(b *board) { b.won = true }},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := newModel(80, 24, testRand())
+			m.board.score = 7
+			tt.setup(&m.board)
+			gen := m.gen
+
+			_, cmd := m.Update(runeKey("r"))
+
+			if !m.board.alive || m.board.won || m.board.score != 0 {
+				t.Errorf("alive, won, score = %v, %v, %d; want a fresh game",
+					m.board.alive, m.board.won, m.board.score)
+			}
+			if m.gen == gen {
+				t.Error("gen unchanged; want old ticks invalidated")
+			}
+			if cmd == nil {
+				t.Error("cmd = nil; want ticking to restart")
+			}
+		})
+	}
+}
+
+func TestUpdate_restartIgnoredMidGame(t *testing.T) {
+	m := newModel(80, 24, testRand())
+	m.board.score = 7
+
+	_, cmd := m.Update(runeKey("r"))
+
+	if m.board.score != 7 {
+		t.Errorf("score = %d; want 7 (r only restarts a finished game)", m.board.score)
+	}
+	if cmd != nil {
+		t.Error("cmd != nil; want nil")
+	}
+}

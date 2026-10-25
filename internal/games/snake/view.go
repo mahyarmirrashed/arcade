@@ -14,6 +14,7 @@ import (
 const (
 	emptyCell = "  "
 	snakeCell = "██"
+	deadCell  = "XX"
 	foodCell  = "()"
 )
 
@@ -28,11 +29,11 @@ func (m *Model) View() string {
 	if m.tooSmall {
 		return m.place(m.tooSmallView())
 	}
-	grid := ui.Border.Render(m.renderGrid())
+	width := m.board.cols*cellWidth + borderW
 	return m.place(lipgloss.JoinVertical(lipgloss.Left,
-		m.header(lipgloss.Width(grid)),
-		grid,
-		m.footer(),
+		m.header(width),
+		ui.Border.Render(strings.Join(m.gridLines(), "\n")),
+		m.footer(width),
 	))
 }
 
@@ -49,13 +50,40 @@ func (m *Model) header(width int) string {
 	return title + strings.Repeat(" ", gap) + score
 }
 
-func (m *Model) footer() string {
-	return ui.Muted.Render("arrows/hjkl  move    q  quit")
+// footer lists the keys that do something right now. Hints are dropped from
+// the front until the rest fit within width, so small boards don't wrap.
+func (m *Model) footer(width int) string {
+	hints := []string{"arrows/hjkl  move", "q  quit"}
+	if !m.playing() {
+		hints = []string{"r  restart", "q  quit"}
+	}
+	line := strings.Join(hints, "    ")
+	for len(hints) > 1 && lipgloss.Width(line) > width {
+		hints = hints[1:]
+		line = strings.Join(hints, "    ")
+	}
+	return ui.Muted.Render(line)
 }
 
-func (m *Model) renderGrid() string {
+// status is the message shown across the middle of the board, if any.
+func (m *Model) status() string {
+	switch {
+	case m.board.won:
+		return ui.Accent.Render("you win!")
+	case !m.board.alive:
+		return ui.Error.Render("game over")
+	}
+	return ""
+}
+
+// gridLines renders the board one row per line, with any status message
+// written over the middle row.
+func (m *Model) gridLines() []string {
 	b := &m.board
 	head := headStyle.Render(snakeCell)
+	if !b.alive {
+		head = ui.Error.Render(deadCell)
+	}
 	body := bodyStyle.Render(snakeCell)
 	food := foodStyle.Render(foodCell)
 
@@ -64,11 +92,9 @@ func (m *Model) renderGrid() string {
 		occupied[p] = true
 	}
 
-	var sb strings.Builder
+	lines := make([]string, b.rows)
 	for y := range b.rows {
-		if y > 0 {
-			sb.WriteByte('\n')
-		}
+		var sb strings.Builder
 		for x := range b.cols {
 			switch p := (point{x, y}); {
 			case p == b.body[0]:
@@ -81,8 +107,13 @@ func (m *Model) renderGrid() string {
 				sb.WriteString(emptyCell)
 			}
 		}
+		lines[y] = sb.String()
 	}
-	return sb.String()
+
+	if s := m.status(); s != "" {
+		lines[b.rows/2] = lipgloss.PlaceHorizontal(b.cols*cellWidth, lipgloss.Center, s)
+	}
+	return lines
 }
 
 func (m *Model) tooSmallView() string {

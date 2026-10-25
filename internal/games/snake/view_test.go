@@ -53,3 +53,23 @@ func TestView_playing(t *testing.T) {
 func TestView_tooSmall(t *testing.T) {
 	checkGolden(t, "too_small", newModel(30, 10, testRand()).View())
 }
+
+func TestView_gameOver(t *testing.T) {
+	m := midGame()
+	m.board.alive = false
+	checkGolden(t, "game_over", m.View())
+}
+
+func TestView_won(t *testing.T) {
+	m := midGame()
+	m.board.won = true
+	checkGolden(t, "won", m.View())
+}
+
+func TestView_wideTerminalShowsMoveHint(t *testing.T) {
+	checkGolden(t, "wide", newModel(80, 24, testRand()).View())
+}
+
+func TestView_smallestBoardDropsMoveHint(t *testing.T) {
+	checkGolden(t, "smallest", newModel(22, 14, testRand()).View())
+}
