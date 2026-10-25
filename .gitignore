@@ -1,0 +1,8 @@
+# ssh host keys generated at runtime
+id_ed25519
+id_ed25519.pub
+.ssh/
+
+# go build output
+arcade
+snake
