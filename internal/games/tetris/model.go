@@ -142,6 +142,14 @@ func (m *Model) Init() tea.Cmd {
 
 // Update implements tea.Model.
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Track the terminal size in every state so View always lays out for the
+	// current terminal.
+	if ws, ok := msg.(tea.WindowSizeMsg); ok {
+		m.width = ws.Width
+		m.height = ws.Height
+		return m, nil
+	}
+
 	if !m.alive {
 		if km, ok := msg.(tea.KeyMsg); ok {
 			switch km.String() {
@@ -154,18 +162,22 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		m.height = msg.Height
-
 	case tickMsg:
 		if msg.owner != m {
 			return m, nil
 		}
-		m.gravity()
+		// While the terminal is too small the player can't see the board, so
+		// hold the piece; the tick loop keeps running so play resumes once it
+		// fits again.
+		if m.fits() {
+			m.gravity()
+		}
 		return m, tickCmd(m)
 
 	case tea.KeyMsg:
+		if !m.fits() {
+			return m, nil
+		}
 		switch {
 		case key.Matches(msg, keys.left):
 			m.tryMove(0, -1)
@@ -314,6 +326,24 @@ var pieceColor = [7]lipgloss.Color{
 
 // View implements tea.Model.
 func (m *Model) View() string {
+	game := m.layout()
+	if w, h := lipgloss.Size(game); w > m.width || h > m.height {
+		return m.styles.TooSmall(m.width, m.height, w, h)
+	}
+	return lipgloss.Place(m.width, m.height,
+		lipgloss.Center, lipgloss.Center,
+		game,
+	)
+}
+
+// fits reports whether the whole layout fits in the terminal.
+func (m *Model) fits() bool {
+	w, h := lipgloss.Size(m.layout())
+	return w <= m.width && h <= m.height
+}
+
+// layout renders the help, the titled board and the side panel side by side.
+func (m *Model) layout() string {
 	// The board is wrapped in a border (+1 row top, +1 row bottom).
 	// Pad help and side by 1 at the bottom so their content aligns with the
 	// board's inner content rather than the border's bottom edge.
@@ -326,12 +356,7 @@ func (m *Model) View() string {
 	title := m.styles.Title.Render("tetris")
 	boardWithTitle := lipgloss.JoinVertical(lipgloss.Left, title, "", board)
 
-	game := lipgloss.JoinHorizontal(lipgloss.Bottom, help, "  ", boardWithTitle, "  ", side)
-
-	return lipgloss.Place(m.width, m.height,
-		lipgloss.Center, lipgloss.Center,
-		game,
-	)
+	return lipgloss.JoinHorizontal(lipgloss.Bottom, help, "  ", boardWithTitle, "  ", side)
 }
 
 func (m *Model) renderBoard() string {

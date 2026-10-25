@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
 
@@ -495,5 +496,59 @@ func TestView_rendersWithSessionStyles(t *testing.T) {
 	}
 	if strings.Contains(plain, "\x1b[") {
 		t.Error("no-colour session rendered colour codes")
+	}
+}
+
+func TestModel_tooSmallTerminalShowsNotice(t *testing.T) {
+	m := newTestModel()
+
+	m.Update(tea.WindowSizeMsg{Width: 40, Height: 15})
+
+	if v := m.View(); !strings.Contains(v, "terminal too small") {
+		t.Errorf("40x15 view does not say the terminal is too small:\n%s", v)
+	}
+}
+
+func TestModel_tooSmallPausesTheGame(t *testing.T) {
+	m := newTestModel()
+	m.Update(tea.WindowSizeMsg{Width: 40, Height: 15})
+	row, col := m.current.row, m.current.col
+
+	_, cmd := m.Update(tickMsg{owner: m})
+	m.Update(tea.KeyMsg{Type: tea.KeyLeft})
+
+	if m.current.row != row || m.current.col != col {
+		t.Errorf("piece at %d,%d; want it held at %d,%d while too small",
+			m.current.row, m.current.col, row, col)
+	}
+	if cmd == nil {
+		t.Error("cmd = nil; the tick loop must keep running so play resumes")
+	}
+}
+
+func TestModel_growingBackResumes(t *testing.T) {
+	m := newTestModel()
+	m.Update(tea.WindowSizeMsg{Width: 40, Height: 15})
+	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	row := m.current.row
+
+	m.Update(tickMsg{owner: m})
+
+	if m.current.row != row+1 {
+		t.Errorf("row = %d; want %d once the terminal fits again", m.current.row, row+1)
+	}
+	if v := m.View(); strings.Contains(v, "terminal too small") {
+		t.Errorf("80x24 view still shows the notice:\n%s", v)
+	}
+}
+
+func TestModel_resizeAfterGameOverIsTracked(t *testing.T) {
+	m := newTestModel()
+	m.alive = false
+
+	m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+
+	if m.width != 100 || m.height != 30 {
+		t.Errorf("size = %dx%d; want 100x30", m.width, m.height)
 	}
 }
