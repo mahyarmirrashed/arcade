@@ -317,13 +317,13 @@ func (m *Model) View() string {
 	// The board is wrapped in a border (+1 row top, +1 row bottom).
 	// Pad help and side by 1 at the bottom so their content aligns with the
 	// board's inner content rather than the border's bottom edge.
-	pad := lipgloss.NewStyle().PaddingBottom(1)
+	pad := m.styles.NewStyle().PaddingBottom(1)
 
 	help  := pad.Render(m.renderHelp())
 	board := m.renderBoard()
 	side  := pad.Render(m.renderSide())
 
-	title := ui.Title.Render("tetris")
+	title := m.styles.Title.Render("tetris")
 	boardWithTitle := lipgloss.JoinVertical(lipgloss.Left, title, "", board)
 
 	game := lipgloss.JoinHorizontal(lipgloss.Bottom, help, "  ", boardWithTitle, "  ", side)
@@ -343,16 +343,16 @@ func (m *Model) renderBoard() string {
 		for c := 0; c < boardCols; c++ {
 			if m.board[r][c].filled {
 				color := pieceColor[m.board[r][c].pieceType]
-				grid[r][c] = lipgloss.NewStyle().Foreground(color).Render(cellFull)
+				grid[r][c] = m.styles.NewStyle().Foreground(color).Render(cellFull)
 			} else {
-				grid[r][c] = ui.Muted.Render(cellEmpty)
+				grid[r][c] = m.styles.Muted.Render(cellEmpty)
 			}
 		}
 	}
 
 	// Ghost piece.
 	ghostR := m.ghostRow()
-	ghostStyle := lipgloss.NewStyle().Foreground(ui.ColorMuted).Faint(true)
+	ghostStyle := m.styles.NewStyle().Foreground(ui.ColorMuted).Faint(true)
 	for _, pos := range Cells(m.current.shape()) {
 		r := ghostR + pos[0]
 		c := m.current.col + pos[1]
@@ -363,7 +363,7 @@ func (m *Model) renderBoard() string {
 
 	// Active piece (drawn on top of ghost).
 	activeColor := pieceColor[m.current.pt]
-	activeStyle := lipgloss.NewStyle().Foreground(activeColor)
+	activeStyle := m.styles.NewStyle().Foreground(activeColor)
 	for _, pos := range Cells(m.current.shape()) {
 		r := m.current.row + pos[0]
 		c := m.current.col + pos[1]
@@ -388,7 +388,7 @@ func (m *Model) renderBoard() string {
 	if !m.alive {
 		// Each cell is 2 chars wide; board inner width = boardCols*2.
 		innerW := boardCols * 2
-		overlay := ui.Error.Render(" game over ")
+		overlay := m.styles.Error.Render(" game over ")
 		inner = lipgloss.Place(innerW, boardRows,
 			lipgloss.Center, lipgloss.Center,
 			overlay,
@@ -396,11 +396,11 @@ func (m *Model) renderBoard() string {
 		)
 	}
 
-	return ui.Border.Render(inner)
+	return m.styles.Border.Render(inner)
 }
 
 func (m *Model) renderHelp() string {
-	line := func(s string) string { return ui.Muted.Render(s) }
+	line := func(s string) string { return m.styles.Muted.Render(s) }
 	return lipgloss.JoinVertical(lipgloss.Left,
 		line("←→   move"),
 		line("↑/x  rotate cw"),
@@ -414,25 +414,25 @@ func (m *Model) renderHelp() string {
 }
 
 func (m *Model) renderSide() string {
-	nextLabel := ui.Subtitle.Render("next")
+	nextLabel := m.styles.Subtitle.Render("next")
 	nextPiece := m.renderMiniPiece(m.next)
 
-	holdLabel := ui.Subtitle.Render("hold")
+	holdLabel := m.styles.Subtitle.Render("hold")
 	var holdPiece string
 	if m.hold != nil {
 		holdPiece = m.renderMiniPiece(*m.hold)
 	} else {
-		holdPiece = ui.Muted.Render("─")
+		holdPiece = m.styles.Muted.Render("─")
 	}
 
 	stats := lipgloss.JoinVertical(lipgloss.Left,
-		ui.Subtitle.Render("score"),
+		m.styles.Subtitle.Render("score"),
 		strconv.Itoa(m.score),
 		"",
-		ui.Subtitle.Render("level"),
+		m.styles.Subtitle.Render("level"),
 		strconv.Itoa(m.level),
 		"",
-		ui.Subtitle.Render("lines"),
+		m.styles.Subtitle.Render("lines"),
 		strconv.Itoa(m.lines),
 	)
 
@@ -450,7 +450,7 @@ func (m *Model) renderSide() string {
 func (m *Model) renderMiniPiece(pt PieceType) string {
 	s := Rotation(pt, 0)
 	color := pieceColor[pt]
-	style := lipgloss.NewStyle().Foreground(color)
+	style := m.styles.NewStyle().Foreground(color)
 
 	var sb strings.Builder
 	for r := 0; r < 4; r++ {

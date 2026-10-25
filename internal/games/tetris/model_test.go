@@ -2,6 +2,7 @@ package tetris
 
 import (
 	"io"
+	"strings"
 	"testing"
 
 	"github.com/charmbracelet/lipgloss"
@@ -474,5 +475,25 @@ func TestModel_tickFromEarlierGameIgnored(t *testing.T) {
 	}
 	if cmd != nil {
 		t.Error("cmd != nil; another game's tick must not start a second loop")
+	}
+}
+
+func TestView_rendersWithSessionStyles(t *testing.T) {
+	// The server's own renderer has no colour; the player's terminal does.
+	prev := lipgloss.ColorProfile()
+	lipgloss.SetColorProfile(termenv.Ascii)
+	t.Cleanup(func() { lipgloss.SetColorProfile(prev) })
+
+	r := lipgloss.NewRenderer(io.Discard)
+	r.SetColorProfile(termenv.ANSI256)
+
+	colour := newModel(80, 24, ui.NewStyles(r)).View()
+	plain := newModel(80, 24, testStyles()).View()
+
+	if !strings.Contains(colour, "38;5;") {
+		t.Error("256-colour session rendered no colour codes")
+	}
+	if strings.Contains(plain, "\x1b[") {
+		t.Error("no-colour session rendered colour codes")
 	}
 }
