@@ -1,0 +1,204 @@
+package snake
+
+import (
+	"testing"
+
+	tea "github.com/charmbracelet/bubbletea"
+)
+
+func runeKey(s string) tea.KeyMsg {
+	return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(s)}
+}
+
+func TestGridSize(t *testing.T) {
+	tests := []struct {
+		name               string
+		termW, termH       int
+		wantCols, wantRows int
+		wantOK             bool
+	}{
+		{"standard 80x24", 80, 24, 39, 20, true},
+		{"capped when huge", 200, 60, maxCols, maxRows, true},
+		{"smallest playable", 22, 14, 10, 10, true},
+		{"one column short", 21, 14, 9, 10, false},
+		{"one row short", 22, 13, 10, 9, false},
+		{"zero size", 0, 0, -1, -4, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cols, rows, ok := gridSize(tt.termW, tt.termH)
+
+			if cols != tt.wantCols || rows != tt.wantRows || ok != tt.wantOK {
+				t.Errorf("gridSize(%d, %d) = %d, %d, %v; want %d, %d, %v",
+					tt.termW, tt.termH, cols, rows, ok, tt.wantCols, tt.wantRows, tt.wantOK)
+			}
+		})
+	}
+}
+
+func TestNew_sizesBoardToTerminal(t *testing.T) {
+	var g Model
+	m, ok := g.New(80, 24).(*Model)
+	if !ok {
+		t.Fatalf("New returned %T; want *Model", g.New(80, 24))
+	}
+
+	if m.tooSmall {
+		t.Fatal("tooSmall = true; want false")
+	}
+	if m.board.cols != 39 || m.board.rows != 20 {
+		t.Errorf("board = %dx%d; want 39x20", m.board.cols, m.board.rows)
+	}
+	if m.Init() == nil {
+		t.Error("Init() = nil; want a tick command")
+	}
+}
+
+func TestNew_tooSmallTerminalDoesNotTick(t *testing.T) {
+	m := newModel(20, 10, testRand())
+
+	if !m.tooSmall {
+		t.Error("tooSmall = false; want true")
+	}
+	if m.Init() != nil {
+		t.Error("Init() returned a command; want nil")
+	}
+}
+
+func TestUpdate_tickAdvancesSnake(t *testing.T) {
+	m := newModel(80, 24, testRand())
+	head := m.board.body[0]
+
+	_, cmd := m.Update(tickMsg{gen: m.gen})
+
+	if got, want := m.board.body[0], head.add(right.delta()); got != want {
+		t.Errorf("head = %v; want %v", got, want)
+	}
+	if cmd == nil {
+		t.Error("cmd = nil; want the next tick")
+	}
+}
+
+func TestUpdate_staleTickIgnored(t *testing.T) {
+	m := newModel(80, 24, testRand())
+	head := m.board.body[0]
+
+	_, cmd := m.Update(tickMsg{gen: m.gen - 1})
+
+	if got := m.board.body[0]; got != head {
+		t.Errorf("head = %v; want unchanged %v", got, head)
+	}
+	if cmd != nil {
+		t.Error("cmd != nil; a stale tick must not start another")
+	}
+}
+
+func TestUpdate_deathStopsTicking(t *testing.T) {
+	m := newModel(80, 24, testRand())
+	m.board = heading(m.board.cols, m.board.rows, right, point{m.board.cols - 1, 0})
+
+	_, cmd := m.Update(tickMsg{gen: m.gen})
+
+	if m.board.alive {
+		t.Fatal("alive = true; want false after hitting the wall")
+	}
+	if cmd != nil {
+		t.Error("cmd != nil; want ticking to stop on death")
+	}
+}
+
+func TestUpdate_keysSteer(t *testing.T) {
+	tests := []struct {
+		name  string
+		key   tea.KeyMsg
+		start direction // perpendicular to the key, so the turn is allowed
+		want  direction
+	}{
+		{"up arrow", tea.KeyMsg{Type: tea.KeyUp}, right, up},
+		{"k", runeKey("k"), right, up},
+		{"down arrow", tea.KeyMsg{Type: tea.KeyDown}, right, down},
+		{"j", runeKey("j"), right, down},
+		{"left arrow", tea.KeyMsg{Type: tea.KeyLeft}, up, left},
+		{"h", runeKey("h"), up, left},
+		{"right arrow", tea.KeyMsg{Type: tea.KeyRight}, up, right},
+		{"l", runeKey("l"), up, right},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := newModel(80, 24, testRand())
+			m.board.dir, m.board.next = tt.start, tt.start
+
+			m.Update(tt.key)
+
+			if m.board.next != tt.want {
+				t.Errorf("next = %v; want %v", m.board.next, tt.want)
+			}
+		})
+	}
+}
+
+func TestUpdate_resizeResets(t *testing.T) {
+	m := newModel(80, 24, testRand())
+	m.board.score = 5
+	gen := m.gen
+
+	_, cmd := m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+
+	if m.board.score != 0 {
+		t.Errorf("score = %d; want 0 after reset", m.board.score)
+	}
+	if m.board.cols != maxCols || m.board.rows != maxRows {
+		t.Errorf("board = %dx%d; want %dx%d", m.board.cols, m.board.rows, maxCols, maxRows)
+	}
+	if m.gen == gen {
+		t.Error("gen unchanged; old ticks would keep the previous game running")
+	}
+	if cmd == nil {
+		t.Error("cmd = nil; want a tick for the new game")
+	}
+}
+
+func TestUpdate_sameSizeKeepsGame(t *testing.T) {
+	// Wish sends the starting size again once the session opens.
+	m := newModel(80, 24, testRand())
+	m.board.score = 5
+
+	_, cmd := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+
+	if m.board.score != 5 {
+		t.Errorf("score = %d; want 5 (no reset)", m.board.score)
+	}
+	if cmd != nil {
+		t.Error("cmd != nil; the existing tick chain is still running")
+	}
+}
+
+func TestUpdate_resizeTooSmallStopsTicking(t *testing.T) {
+	m := newModel(80, 24, testRand())
+
+	_, cmd := m.Update(tea.WindowSizeMsg{Width: 20, Height: 10})
+
+	if !m.tooSmall {
+		t.Error("tooSmall = false; want true")
+	}
+	if cmd != nil {
+		t.Error("cmd != nil; want no ticking while too small")
+	}
+}
+
+func TestUpdate_quit(t *testing.T) {
+	for _, key := range []tea.KeyMsg{runeKey("q"), {Type: tea.KeyCtrlC}} {
+		t.Run(key.String(), func(t *testing.T) {
+			m := newModel(80, 24, testRand())
+
+			_, cmd := m.Update(key)
+
+			if cmd == nil {
+				t.Fatal("cmd = nil; want quit")
+			}
+			if _, ok := cmd().(tea.QuitMsg); !ok {
+				t.Errorf("cmd() = %T; want tea.QuitMsg", cmd())
+			}
+		})
+	}
+}
