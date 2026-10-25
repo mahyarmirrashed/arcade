@@ -313,7 +313,7 @@ func (m *Model) viewWaiting() string {
 		"",
 		m.styles.Muted.Render("waiting for opponent to join..."),
 		"",
-		m.styles.Muted.Render("j  join a room instead   q  quit"),
+		m.styles.Muted.Render("j to join a room instead · q to quit"),
 	)
 	return lines
 }
@@ -332,7 +332,7 @@ func (m *Model) viewJoining() string {
 		"",
 		notice,
 		"",
-		m.styles.Muted.Render("enter  join   esc  back   q  quit"),
+		m.styles.Muted.Render("enter to join · esc to go back · q to quit"),
 	)
 }
 
@@ -505,7 +505,7 @@ func (m *Model) viewOver() string {
 		"",
 		fmt.Sprintf("you %d  ·  opponent %d", s.myScore, s.oppScore),
 		"",
-		m.styles.Muted.Render("r  new game   q  quit"),
+		m.styles.Muted.Render("r to play again · q to quit"),
 	)
 }
 

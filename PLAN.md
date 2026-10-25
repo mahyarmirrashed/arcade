@@ -380,6 +380,36 @@ Every game `View()` must follow this pattern:
 - All multi-line content built with `lipgloss.JoinVertical` — no raw `\n`
   concatenation
 
+### Help text format
+
+There are two distinct help text styles depending on context.
+
+**In-game controls** (left panel, one binding per line):
+
+```
+←→   move
+↑/x  rotate cw
+spc  hard drop
+q    quit
+```
+
+Each line is `key  action` — key left-aligned, short action label, no connector
+word. Rendered with `styles.Muted`.
+
+**Screen-level hints** (bottom of a screen, single line):
+
+```
+j to join room · enter to select · esc to quit
+```
+
+Format: `key to action` connected by ` · ` (space-middot-space). Every segment
+uses "to" between the key and the action. No angle brackets, no parentheses.
+Used in the lobby, waiting screens, name prompt, and any non-game screen.
+
+The distinction: in-game controls are a reference card you glance at while
+playing; screen hints are a single line of the 2-3 most important actions on
+that screen.
+
 ### Resizing
 
 Players may resize at any time, so every screen handles `tea.WindowSizeMsg` in
