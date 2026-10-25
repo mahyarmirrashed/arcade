@@ -143,6 +143,10 @@ type Session struct {
 // guest if id is "".
 func (b *Board) Session(id string) Session { return Session{board: b, id: id} }
 
+// Enabled reports whether the session has a leaderboard to record on and
+// list. Guests on a board are enabled; they just aren't ranked.
+func (s Session) Enabled() bool { return s.board != nil }
+
 // Name returns the player's display name, or "" if they have none.
 func (s Session) Name() string {
 	if s.board == nil || s.id == "" {

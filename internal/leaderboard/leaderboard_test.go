@@ -360,3 +360,14 @@ func TestLabel(t *testing.T) {
 		}
 	}
 }
+
+func TestSession_Enabled(t *testing.T) {
+	b, _ := testBoard(t)
+
+	if (Session{}).Enabled() {
+		t.Error("zero Session: Enabled = true; want false")
+	}
+	if !b.Session("").Enabled() || !b.Session("key").Enabled() {
+		t.Error("sessions on a board: Enabled = false; want true, guests included")
+	}
+}
