@@ -44,11 +44,11 @@ func checkGolden(t *testing.T, name, got string) {
 	}
 }
 
-// midGame returns a 14x12 board with a bent four-cell snake and food in view,
-// in the smallest terminal that fits it.
+// midGame returns the standard board with a bent four-cell snake and food in
+// view, in an 80x24 terminal.
 func midGame() *Model {
-	m := newModel(52, 16, testRand(), testStyles())
-	m.board = heading(14, 12, right, point{6, 5}, point{5, 5}, point{4, 5}, point{4, 6})
+	m := newModel(80, 24, testRand(), testStyles())
+	m.board = heading(boardCols, boardRows, right, point{6, 5}, point{5, 5}, point{4, 5}, point{4, 6})
 	m.board.food = point{10, 3}
 	m.board.score = 3
 	return m
@@ -78,10 +78,6 @@ func TestView_standardTerminal(t *testing.T) {
 	checkGolden(t, "wide", newModel(80, 24, testRand(), testStyles()).View())
 }
 
-func TestView_smallestBoard(t *testing.T) {
-	checkGolden(t, "smallest", newModel(44, 14, testRand(), testStyles()).View())
-}
-
 func TestView_paused(t *testing.T) {
 	m := midGame()
 	m.paused = true
@@ -89,11 +85,11 @@ func TestView_paused(t *testing.T) {
 }
 
 func TestRenderSide_fitsReservedWidth(t *testing.T) {
-	// gridSize reserves sideW columns; the largest possible score and length
-	// on a full 40x20 board must still fit.
-	m := newModel(200, 60, testRand(), testStyles())
-	m.board.score = maxCols*maxRows - 3
-	m.board.body = make([]point, maxCols*maxRows)
+	// The layout reserves sideW columns; the largest possible score and
+	// length on a full board must still fit.
+	m := newModel(80, 24, testRand(), testStyles())
+	m.board.score = boardCols*boardRows - 3
+	m.board.body = make([]point, boardCols*boardRows)
 
 	if got := lipgloss.Width(m.renderSide()); got > sideW {
 		t.Errorf("side panel width = %d; want <= %d", got, sideW)

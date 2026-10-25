@@ -10,34 +10,6 @@ func runeKey(s string) tea.KeyMsg {
 	return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(s)}
 }
 
-func TestGridSize(t *testing.T) {
-	tests := []struct {
-		name               string
-		termW, termH       int
-		wantCols, wantRows int
-		wantOK             bool
-	}{
-		// The help panel, side panel, gaps and border take 24 columns; the
-		// title, blank line and border take 4 rows.
-		{"standard 80x24", 80, 24, 28, 20, true},
-		{"capped when huge", 200, 60, maxCols, maxRows, true},
-		{"smallest playable", 44, 14, 10, 10, true},
-		{"one column short", 43, 14, 9, 10, false},
-		{"one row short", 44, 13, 10, 9, false},
-		{"zero size", 0, 0, -12, -4, false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cols, rows, ok := gridSize(tt.termW, tt.termH)
-
-			if cols != tt.wantCols || rows != tt.wantRows || ok != tt.wantOK {
-				t.Errorf("gridSize(%d, %d) = %d, %d, %v; want %d, %d, %v",
-					tt.termW, tt.termH, cols, rows, ok, tt.wantCols, tt.wantRows, tt.wantOK)
-			}
-		})
-	}
-}
-
 func TestNew_sizesBoardToTerminal(t *testing.T) {
 	var g Model
 	m, ok := g.New(80, 24, testStyles()).(*Model)
@@ -308,7 +280,7 @@ func TestUpdate_resizeKeepsGame(t *testing.T) {
 		t.Errorf("score, head = %d, %v; want the game kept (5, %v)", m.board.score, m.board.body[0], head)
 	}
 	if m.board.cols != 28 || m.board.rows != 20 {
-		t.Errorf("board = %dx%d; want it kept at 28x20 until the next game", m.board.cols, m.board.rows)
+		t.Errorf("board = %dx%d; want it kept at 28x20", m.board.cols, m.board.rows)
 	}
 	if m.tooSmall || m.paused || m.gen != gen {
 		t.Errorf("tooSmall, paused, gen changed = %v, %v, %v; want the game running on", m.tooSmall, m.paused, m.gen != gen)
@@ -388,15 +360,33 @@ func TestUpdate_startsGameOnceTerminalFits(t *testing.T) {
 	}
 }
 
-func TestUpdate_restartSizesBoardToTerminal(t *testing.T) {
+func TestMinSize_fitsTheStandardBoard(t *testing.T) {
+	// The 28x20 board plus the help and side panels fills an 80x24 terminal.
+	var g Model
+	if w, h := g.MinSize(); w != 80 || h != 24 {
+		t.Errorf("MinSize = %dx%d; want 80x24", w, h)
+	}
+}
+
+func TestNew_boardIsTheSameSizeInAnyTerminal(t *testing.T) {
+	// Every ranked game is played on the same board, so scores compare fairly.
+	for _, size := range [][2]int{{80, 24}, {120, 40}, {300, 100}} {
+		m := newModel(size[0], size[1], testRand(), testStyles())
+		if m.board.cols != boardCols || m.board.rows != boardRows {
+			t.Errorf("%dx%d terminal: board = %dx%d; want %dx%d",
+				size[0], size[1], m.board.cols, m.board.rows, boardCols, boardRows)
+		}
+	}
+}
+
+func TestUpdate_restartKeepsTheStandardBoard(t *testing.T) {
 	m := newModel(80, 24, testRand(), testStyles())
 	m.Update(tea.WindowSizeMsg{Width: 120, Height: 30})
 	m.board.alive = false
 
 	m.Update(runeKey("r"))
 
-	if m.board.cols != maxCols || m.board.rows != maxRows {
-		t.Errorf("board = %dx%d; want the new game sized to the terminal, %dx%d",
-			m.board.cols, m.board.rows, maxCols, maxRows)
+	if m.board.cols != boardCols || m.board.rows != boardRows {
+		t.Errorf("board = %dx%d; want %dx%d", m.board.cols, m.board.rows, boardCols, boardRows)
 	}
 }

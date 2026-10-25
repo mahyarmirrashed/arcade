@@ -19,9 +19,9 @@ const (
 	gapW      = 2 // space between the help panel, the board and the side panel
 	sideW     = 6 // widest side panel line, "length"
 
-	minCols, minRows = 10, 10
-	// The board is capped so huge terminals don't make the game sluggish.
-	maxCols, maxRows = 40, 20
+	// Every game uses the same board, so scores compare fairly. It is the
+	// board an 80x24 terminal fits.
+	boardCols, boardRows = 28, 20
 )
 
 // helpLines are the controls listed left of the board.
@@ -57,20 +57,12 @@ func chromeWidth() int {
 	return lipgloss.Width(strings.Join(helpLines, "\n")) + gapW + borderW + gapW + sideW
 }
 
-// gridSize returns how many cells fit in a terminal of the given size, capped
-// at maxCols x maxRows. ok is false when the terminal is too small to play.
-func gridSize(termW, termH int) (cols, rows int, ok bool) {
-	cols = min((termW-chromeWidth())/cellWidth, maxCols)
-	rows = min(termH-titleH-borderH, maxRows)
-	return cols, rows, cols >= minCols && rows >= minRows
-}
-
 // View implements tea.Model. It follows the arcade layout: help on the left,
 // the title above the board in the middle and stats on the right, all
 // bottom-aligned.
 func (m *Model) View() string {
 	if m.tooSmall {
-		w, h := m.requiredSize()
+		w, h := m.MinSize()
 		return m.styles.TooSmall(m.width, m.height, w, h)
 	}
 
@@ -175,13 +167,4 @@ func (m *Model) renderGrid() string {
 		lines[y] = sb.String()
 	}
 	return lipgloss.JoinVertical(lipgloss.Left, lines...)
-}
-
-// requiredSize is the smallest terminal that can show the current game's
-// board, or MinSize if there is no game yet.
-func (m *Model) requiredSize() (width, height int) {
-	if !m.hasGame() {
-		return m.MinSize()
-	}
-	return m.board.cols*cellWidth + chromeWidth(), m.board.rows + titleH + borderH
 }

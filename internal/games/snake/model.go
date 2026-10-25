@@ -60,25 +60,24 @@ func (m *Model) resize(width, height int) tea.Cmd {
 	return nil
 }
 
-// reset starts a new game sized to the terminal, invalidating any ticks still
-// in flight. If the terminal is too small there is no game until it grows.
+// reset starts a new game, invalidating any ticks still in flight. If the
+// terminal is too small there is no game until it grows.
 func (m *Model) reset() {
 	m.gen++
 	m.paused = false
-	cols, rows, ok := gridSize(m.width, m.height)
-	m.tooSmall = !ok
+	m.tooSmall = !m.boardFits()
 	m.board = board{}
-	if ok {
-		m.board = newBoard(cols, rows, m.rng)
+	if !m.tooSmall {
+		m.board = newBoard(boardCols, boardRows, m.rng)
 	}
 }
 
 func (m *Model) hasGame() bool { return len(m.board.body) > 0 }
 
-// boardFits reports whether the current board, with the panels around it,
-// fits in the terminal.
+// boardFits reports whether the board, with the panels around it, fits in
+// the terminal.
 func (m *Model) boardFits() bool {
-	w, h := m.requiredSize()
+	w, h := m.MinSize()
 	return m.width >= w && m.height >= h
 }
 
@@ -107,9 +106,7 @@ func (m *Model) Description() string { return "eat, grow, don't bite yourself" }
 
 // MinSize implements game.SizeConstraint.
 func (m *Model) MinSize() (int, int) {
-	minW := minCols*cellWidth + chromeWidth()
-	minH := minRows + titleH + borderH
-	return minW, minH
+	return boardCols*cellWidth + chromeWidth(), boardRows + titleH + borderH
 }
 
 // New implements game.Game - returns a fresh model for a new session.
