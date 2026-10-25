@@ -17,10 +17,9 @@ they pick a game. Each SSH session is fully isolated.
 | Structured logging | Charm Log | `github.com/charmbracelet/log`       |
 | SSH primitives     | Charm SSH | `github.com/charmbracelet/ssh`       |
 
-All dependencies managed via Go modules (`go.mod` / `go.sum`).  
-The Nix `devShells.default` already provides `go`; no additional Nix packages
-are required for development. A `buildGoModule` derivation will be added in
-Stage 4 for reproducible builds.
+All dependencies managed via Go modules (`go.mod` / `go.sum`).
+The Nix `devShells.default` provides `go`. `nix build` produces `result/bin/arcade`
+via the `buildGoModule` derivation in `flake.nix`.
 
 ---
 
@@ -29,29 +28,24 @@ Stage 4 for reproducible builds.
 ```
 arcade/
 ├── cmd/
-│   ├── arcade/
-│   │   └── main.go            # Production entry point — lobby + all games
-│   └── snake/
-│       └── main.go            # Standalone Snake entry point (dev / parallel work)
+│   └── arcade/
+│       └── main.go            # entry point - lobby + all games
 ├── internal/
-│   ├── server/
-│   │   └── server.go          # Wish SSH server constructor (shared)
-│   ├── lobby/
-│   │   ├── model.go           # Bubbletea model for game-picker screen
-│   │   └── model_test.go
-│   ├── game/
-│   │   ├── game.go            # Game interface + Registry
-│   │   └── game_test.go
+│   ├── config/                # runtime flag parsing
+│   ├── game/                  # Game interface, Registry, Ranked, Result
 │   ├── games/
+│   │   ├── 2048/
+│   │   ├── minesweeper/
 │   │   ├── snake/
-│   │   │   ├── model.go       # Snake Bubbletea model
-│   │   │   └── model_test.go
-│   │   └── tetris/
-│   │       ├── model.go       # Tetris Bubbletea model
-│   │       └── model_test.go
-│   └── ui/
-│       └── style.go           # Shared Lip Gloss styles and theme
-├── testdata/                  # Golden files for render tests
+│   │   ├── solitaire/
+│   │   ├── sudoku/
+│   │   ├── tetris/
+│   │   └── wordle/
+│   ├── leaderboard/           # persistent per-game leaderboard
+│   ├── lobby/                 # game-picker screen
+│   ├── root/                  # lobby/game state machine + name prompt
+│   ├── server/                # Wish SSH server, renderer, player identity
+│   └── ui/                    # per-session styles and colour palette
 ├── flake.nix
 ├── flake.lock
 ├── go.mod
@@ -61,39 +55,6 @@ arcade/
 ```
 
 ---
-
-## Parallel Development Strategy
-
-Two people work simultaneously without blocking each other:
-
-| Person | Owns           | Entry point                           |
-| ------ | -------------- | ------------------------------------- |
-| You    | Lobby + Tetris | `cmd/arcade` (full arcade)            |
-| Friend | Snake          | `cmd/snake` (standalone Snake server) |
-
-### How `cmd/snake` works
-
-`cmd/snake/main.go` wires the shared `internal/server` package directly to the
-Snake model — no lobby, no registry. It starts its own SSH server (default
-`:2223` to avoid collision with `cmd/arcade` on `:2222`):
-
-```
-ssh -p 2223 localhost   →   Snake game, immediately
-ssh -p 2222 localhost   →   Arcade lobby (pick a game)
-```
-
-Once the lobby is ready and Snake is complete, Snake is registered in the
-central `internal/game` registry and surfaced through `cmd/arcade`. The
-standalone `cmd/snake` binary is kept permanently as a useful dev/debug tool.
-
-### Shared contracts that must be agreed upon before parallel work begins
-
-1. The `Game` interface (see below) — your friend implements it on
-   `*snake.Model`; you consume it in the lobby.
-2. The `internal/ui/style.go` colour theme — agree on palette upfront so both
-   games look consistent.
-3. `internal/server.NewServer` signature — shared between both `cmd/` entry
-   points; changes here affect both.
 
 ---
 
@@ -164,198 +125,35 @@ connection.
 
 ---
 
-## Stages
+## Completed stages
 
-### Stage 1 — Bootstrap (both people, ~day 1)
+All stages are done. For historical context:
 
-**Goal:** Go module initialised, shared packages exist, both entry points
-compile and accept SSH connections.
+- **Stage 1**: Go module, Wish SSH server, shared packages, `cmd/arcade` stub
+- **Stage 2**: Lobby, Tetris (you), Snake (friend) in parallel
+- **Stage 3**: All games integrated into the lobby
+- **Stage 4**: Rate limiting, idle timeouts, graceful shutdown (30s hardcoded), runtime flags (`--addr`, `--host-key`, `--idle-timeout`, `--data-dir`), `buildGoModule` in `flake.nix`
+- **Stage 4B**: Persistent leaderboards — SSH key identity, display name prompt, per-game ranking rules, atomic JSON storage
+- **Stage 5 (games)**: 2048, Minesweeper, Solitaire (Klondike), Sudoku, Wordle added
 
-**Tasks:**
+## Current games
 
-1. `go mod init github.com/mahyarmirrashed/arcade`
-2. `go get github.com/charmbracelet/wish github.com/charmbracelet/bubbletea github.com/charmbracelet/lipgloss github.com/charmbracelet/bubbles github.com/charmbracelet/log`
-3. `internal/server/server.go` —
-   `NewServer(addr string, handler ...) *wish.Server` using functional options;
-   middleware: `logging`, `activeterm`, `recover`, `bubbletea`
-4. `internal/game/game.go` — `Game` interface + `Registry` (agreed contract)
-5. `internal/ui/style.go` — shared colour palette and base Lip Gloss styles
-6. `cmd/arcade/main.go` — stub lobby model, server on `:2222`
-7. `cmd/snake/main.go` — stub "coming soon" model, server on `:2223`
-8. Both binaries compile: `go build ./...`
+| Game        | Ranked by                              |
+| ----------- | -------------------------------------- |
+| 2048        | best score                             |
+| Minesweeper | fastest win                            |
+| Snake       | best score (fixed 28×20 board)         |
+| Solitaire   | fastest win                            |
+| Sudoku      | fastest solve                          |
+| Tetris      | best score                             |
+| Wordle      | longest win streak, then fewest guesses |
 
-**Tests:**
+## Backlog
 
-- `internal/server`: `NewServer` starts without error on a random port
-- `internal/game`: `Registry.All()` returns games in insertion order
-
----
-
-### Stage 2A — Snake (friend, parallel with 2B)
-
-**Goal:** Fully playable Snake accessible via `ssh -p 2223 localhost`.
-
-**Game mechanics:**
-
-- Grid fills the terminal (width × height minus header/footer rows)
-- Tick-based game loop; tick rate increases with score
-- Arrow keys + vi-keys (`h j k l`) for direction; cannot reverse 180°
-- Snake grows on eating food; collision with wall or self ends the game
-- Score displayed in header bar
-
-**Tasks:**
-
-1. `internal/games/snake/model.go` — `Model` struct with fields: body (slice of
-   positions), direction, food, score, alive, width, height
-2. `Init()` returns first tick command
-3. `Update()` handles `TickMsg` (advance), `tea.KeyPressMsg` (steer),
-   `tea.WindowSizeMsg` (resize; pause if the board no longer fits)
-4. `View()` renders grid + score using shared `ui/style` theme
-5. `cmd/snake/main.go` updated to use real `snake.Model`
-6. Compile-time check: `var _ game.Game = (*Model)(nil)`
-
-**Tests (`internal/games/snake/model_test.go`):**
-
-- Collision: wall hit → not alive; self hit → not alive; open space → alive
-- Direction: reverse direction input ignored (table-driven, all 4 directions)
-- Growth: eating food increments score and length by 1
-- Tick advance: head moves one cell in current direction
-- Food placement: always on an empty cell, never on snake body
-
----
-
-### Stage 2B — Lobby + Tetris (you, parallel with 2A)
-
-**Goal:** Interactive lobby served at `:2222`; Tetris playable from it.
-
-#### Lobby (`internal/lobby/model.go`)
-
-- `bubbles/list` component for game selection
-- `bubbles/key` + `bubbles/help` for keybinding display
-- Keys: `↑/↓` or `k/j` navigate, `enter` select, `q` quit
-- Receives `*game.Registry`; list entries built from `registry.All()`
-- On select: emits a `SelectMsg{Game: game.Game}` that the root model handles
-- `tea.WindowSizeMsg` propagated to list component for responsive sizing
-
-**Tests (`internal/lobby/model_test.go`):**
-
-- Up/down keys change selected index
-- Enter emits `SelectMsg` with correct game
-- Window resize propagates to list dimensions
-
-#### Tetris (`internal/games/tetris/model.go`)
-
-**Game mechanics:**
-
-- Standard 10×20 board; `[20][10]cell` — zero value = empty
-- 7 tetrominoes (I O T S Z J L) with SRS wall-kick rotation
-- Controls: `←/→` move, `↑` rotate CW, `z` rotate CCW, `↓` soft drop, `space`
-  hard drop, `c` hold
-- Gravity tick rate increases per level (every 10 lines)
-- Scoring: 1 line = 100×level, 2 = 300×level, 3 = 500×level, 4 = 800×level
-
-**Tasks:**
-
-1. Piece definitions: rotation matrices for all 7 tetrominoes
-2. SRS wall-kick offset tables
-3. `Model` struct: board, current piece, next piece, hold piece, score, level,
-   lines, alive, width, height
-4. `Init()` spawns first piece + starts gravity tick
-5. `Update()` handles gravity tick, all key inputs, line clear, game over
-6. `View()` renders board + next preview + hold slot + score/level/lines panel
-7. Compile-time check: `var _ game.Game = (*Model)(nil)`
-
-**Tests (`internal/games/tetris/model_test.go`):**
-
-- Rotation: all 4 rotations of each piece produce correct cell patterns
-- Wall-kick: rotation near left/right wall succeeds without going out of bounds
-- Line clear: 1/2/3/4 simultaneous clears collapse correct rows (table-driven)
-- Scoring: correct points for 1–4 line clears at varying levels (table-driven)
-- Collision: piece lands on floor and on stacked pieces correctly
-- Game over: spawn into occupied cells → game-over state
-- Gravity tick: current piece advances one row
-
----
-
-### Stage 3 — Integration
-
-**Goal:** Snake and Tetris both reachable through the lobby at `:2222`.
-
-**Tasks:**
-
-1. Register both games in `cmd/arcade/main.go`:
-   ```go
-   reg := game.NewRegistry(
-       snake.New(),
-       tetris.New(),
-   )
-   ```
-2. Root model in `cmd/arcade/main.go`: holds `lobby.Model` or active
-   `game.Model`; handles `lobby.SelectMsg` to transition into a game and
-   `game.QuitMsg` (or `ctrl+c`) to return to lobby
-3. Smoke-test: connect via SSH, navigate lobby, play both games, return to lobby
-   after each
-
-**Tests:**
-
-- Root model: `SelectMsg` transitions state from lobby to game
-- Root model: quit from game transitions back to lobby
-- Both `snake.Model` and `tetris.Model` satisfy `game.Game` (compile-time)
-
----
-
-### Stage 4 — Polish & Hardening
-
-**Goal:** Production-ready server; reproducible Nix build.
-
-**Tasks:**
-
-1. Rate limiting: `github.com/charmbracelet/wish/ratelimiter` middleware
-2. Idle/max session timeouts: `wish.WithIdleTimeout`, `wish.WithMaxTimeout`
-3. Graceful shutdown: catch `SIGINT`/`SIGTERM`, call `server.Shutdown(ctx)` with
-   30-second timeout
-4. Runtime flags: `--addr` (default `:2222`), `--host-key` (default
-   `.ssh/id_ed25519`)
-5. Add `buildGoModule` derivation to `flake.nix` for `cmd/arcade`
-6. `README.md`: install, run, connect instructions
-
-**Tests:**
-
-- Integration: server starts on random port, accepts connection, shuts down
-  cleanly within timeout
-
----
-
-### Stage 4B — Leaderboards
-
-**Goal:** persistent leaderboards per game, kept across server restarts.
-
-- **Identity:** the server accepts any SSH public key (SSH proves possession)
-  and keyboard-interactive with no questions for players without one. A key's
-  SHA-256 fingerprint is the player ID; a first visit asks for a display name
-  (3–12 of `A-Z a-z 0-9 - _`, unique ignoring case). Keyless players are
-  unranked guests. Fingerprints are never displayed.
-- **Rules:** best score (2048, Snake, Tetris; earlier score wins ties),
-  longest win streak then fewest guesses per win (Wordle), fastest win
-  (Minesweeper, Solitaire; timed from the first move). Snake's board is fixed at 28×20 so scores are comparable.
-- **Storage:** `internal/leaderboard`, one JSON file at
-  `<data-dir>/leaderboard.json`, rewritten atomically (temp file + rename,
-  mode 0600) after every change, guarded by a mutex. Only `cmd/arcade` opens
-  it. An unreadable file is a startup error, never overwritten.
-- **Display:** the lobby lists the top 10 for the highlighted game and the
-  player's own rank; game-over screens show "new best! #3/12" and the like.
-
-### Stage 5 — Future Games (Backlog)
-
-Adding a game = implement `Game` interface + one line in `cmd/arcade/main.go`.
-
-| Game            | Notes                                       |
-| --------------- | ------------------------------------------- |
-| Minesweeper     | Grid-based; no tick loop needed             |
-| 2048            | Slide-and-merge; simple state machine       |
-| Wordle          | Text-based; no tick loop needed             |
-| Conway's Life   | Simulation/screensaver                      |
-| Pong (2-player) | Requires server-side room broker — deferred |
+| Game            | Notes                                           |
+| --------------- | ----------------------------------------------- |
+| Conway's Life   | Simulation/screensaver, no interaction needed   |
+| Pong (2-player) | Requires server-side room broker — deferred     |
 
 ---
 
@@ -487,8 +285,7 @@ every state, including game over:
 - If the layout no longer fits, render
   `styles.TooSmall(width, height, minW, minH)` instead of letting Bubble Tea
   clip it, and pause the game until it fits again.
-- The root model (and `cmd/snake`'s standalone wrapper) clears the screen on
-  resize, so games don't need to.
+- The root model clears the screen on resize, so games don't need to.
 
 ### Leaderboard results
 
@@ -527,4 +324,4 @@ and display strings. `"tetris"`, `"snake"`, not `"Tetris"`, `"Snake"`.
 | `context.Context` for shutdown                                          | Idiomatic Go cancellation                                 |
 | No global mutable state; registry injected at `main.go`                 | No `init()` surprises; fully testable                     |
 | Single `tea.Program` per SSH session; root model owns lobby↔game switch | Avoids nested-program complexity                          |
-| `cmd/snake` standalone binary kept permanently                          | Useful dev tool; zero coupling cost                       |
+| Graceful shutdown timeout hardcoded at 30s, not a flag                  | Implementation detail; no deployment needs a different value |
