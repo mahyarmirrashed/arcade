@@ -4,9 +4,11 @@ import (
 	"math/rand"
 	"strings"
 	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/mahyarmirrashed/arcade/internal/game"
 	"github.com/mahyarmirrashed/arcade/internal/ui"
 )
 
@@ -347,5 +349,88 @@ func TestModel_restartOnWon(t *testing.T) {
 	}
 	if rm.m.state != statePlaying {
 		t.Error("restarted model should be playing")
+	}
+}
+
+// stoppedClock returns a clock reading t0 that the test moves by hand.
+func stoppedClock(m *Model) *time.Time {
+	t0 := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	m.now = func() time.Time { return t0 }
+	return &t0
+}
+
+// oneCardFromWinning leaves only the king of spades, face up on the waste,
+// for the foundations to take.
+func oneCardFromWinning(m *Model) {
+	for s := Hearts; s <= Spades; s++ {
+		m.foundations[s] = pile{kind: kindFoundation}
+		for r := Ace; r <= King; r++ {
+			if s == Spades && r == King {
+				break
+			}
+			m.foundations[s].cards = append(m.foundations[s].cards, Card{Suit: s, Rank: r, FaceUp: true})
+		}
+	}
+	for i := range m.tableau {
+		m.tableau[i] = pile{kind: kindTableau}
+	}
+	m.stock = pile{kind: kindStock}
+	m.waste = pile{kind: kindWaste, cards: []Card{{Suit: Spades, Rank: King, FaceUp: true}}}
+	m.cursor = cursorWaste
+}
+
+var autoKey = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")}
+
+func TestModel_winReportsTimeFromFirstMove(t *testing.T) {
+	m := newTestModel()
+	clock := stoppedClock(m)
+	*clock = clock.Add(time.Hour) // time before the first move doesn't count
+	m.handleKey(tea.KeyMsg{Type: tea.KeyRight})
+	oneCardFromWinning(m)
+	*clock = clock.Add(3 * time.Minute)
+
+	cmd := m.handleKey(autoKey)
+
+	want := game.ResultMsg{Game: "solitaire", Ranking: game.ByTime,
+		Result: game.Result{Won: true, Duration: 3 * time.Minute}}
+	if m.state != stateWon || cmd == nil || cmd() != want {
+		t.Errorf("state %v, cmd() = %v; want stateWon and %#v", m.state, cmd, want)
+	}
+}
+
+func TestModel_resultIsReportedOnce(t *testing.T) {
+	m := newTestModel()
+	stoppedClock(m)
+	oneCardFromWinning(m)
+	m.handleKey(autoKey)
+
+	if cmd := m.handleKey(autoKey); cmd != nil {
+		t.Errorf("a key after winning returned %v; want nil", cmd)
+	}
+}
+
+func TestModel_standingAppearsAtGameOver(t *testing.T) {
+	m := newTestModel()
+	m.state = stateWon
+
+	m.Update(game.StandingMsg{Standing: game.Standing{Ranked: true, NewBest: true, Rank: 1, Of: 4}})
+
+	if v := m.View(); !strings.Contains(v, "new best! #1/4") {
+		t.Errorf("win screen doesn't show the standing:\n%s", v)
+	}
+}
+
+func TestModel_tooSmallTerminalShowsNoticeAndIgnoresKeys(t *testing.T) {
+	m := newTestModel()
+	cursor := m.cursor
+
+	m.Update(tea.WindowSizeMsg{Width: 30, Height: 10})
+	m.Update(tea.KeyMsg{Type: tea.KeyRight})
+
+	if v := m.View(); !strings.Contains(v, "terminal too small") {
+		t.Errorf("30x10 view does not say the terminal is too small:\n%s", v)
+	}
+	if m.cursor != cursor || !m.started.IsZero() {
+		t.Error("a key acted on the game while the player couldn't see it")
 	}
 }

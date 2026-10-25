@@ -13,8 +13,8 @@ import (
 	"github.com/mahyarmirrashed/arcade/internal/ui"
 )
 
-// Compile-time check: Model must satisfy game.Game.
-var _ game.Game = (*Model)(nil)
+// Compile-time check: Model must be a ranked game.
+var _ game.Ranked = (*Model)(nil)
 
 // cursor positions:
 //   0-6: tableau columns 0-6
@@ -82,12 +82,19 @@ type Model struct {
 	width  int
 	height int
 	styles ui.Styles
+
+	now      func() time.Time // the clock; replaced in tests
+	started  time.Time        // when the player first moved
+	standing *game.Standing   // where the finished game placed, once known
 }
 
 // - game.Game implementation -
 
 func (m *Model) Name() string        { return "Solitaire" }
 func (m *Model) Description() string { return "klondike - clear the tableau" }
+
+// Ranking implements game.Ranked.
+func (m *Model) Ranking() game.Ranking { return game.ByTime }
 
 func (m *Model) New(width, height int, styles ui.Styles) tea.Model {
 	return newModel(width, height, styles)
@@ -100,6 +107,7 @@ func newModel(width, height int, styles ui.Styles) *Model {
 		height: height,
 		styles: styles,
 		cursor: 0,
+		now:    time.Now,
 	}
 	m.deal(rng)
 	return m
@@ -149,7 +157,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 	case tea.KeyMsg:
+		// Ignore keys while the player can't see the board.
+		if !m.fits() {
+			return m, nil
+		}
 		return m, m.handleKey(msg)
+	case game.StandingMsg:
+		if m.state == stateWon {
+			s := msg.Standing
+			m.standing = &s
+		}
 	}
 	return m, nil
 }
@@ -159,11 +176,15 @@ type restartMsg struct{ m *Model }
 func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 	if msg.String() == "r" && m.state == stateWon {
 		fresh := newModel(m.width, m.height, m.styles)
+		fresh.now = m.now
 		return func() tea.Msg { return restartMsg{fresh} }
 	}
 
 	if m.state != statePlaying {
 		return nil
+	}
+	if m.started.IsZero() {
+		m.started = m.now() // the clock starts with the first move
 	}
 
 	switch {
@@ -185,6 +206,9 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 		m.autoMove()
 	case key.Matches(msg, keys.draw):
 		m.draw()
+	}
+	if m.state == stateWon {
+		return game.Finished(m, game.Result{Won: true, Duration: m.now().Sub(m.started)})
 	}
 	return nil
 }
@@ -339,6 +363,24 @@ func (m *Model) pileAt(c int) *pile {
 // - View -
 
 func (m *Model) View() string {
+	layout := m.layout()
+	if w, h := lipgloss.Size(layout); w > m.width || h > m.height {
+		return m.styles.TooSmall(m.width, m.height, w, h)
+	}
+	return lipgloss.Place(m.width, m.height,
+		lipgloss.Center, lipgloss.Center,
+		layout,
+	)
+}
+
+// fits reports whether the whole layout fits in the terminal.
+func (m *Model) fits() bool {
+	w, h := lipgloss.Size(m.layout())
+	return w <= m.width && h <= m.height
+}
+
+// layout renders the help beside the titled board.
+func (m *Model) layout() string {
 	help := m.renderHelp()
 	board := m.renderBoard()
 
@@ -346,13 +388,8 @@ func (m *Model) View() string {
 	boardWithTitle := lipgloss.JoinVertical(lipgloss.Left, title, "", board)
 
 	pad := m.styles.NewStyle().PaddingBottom(1)
-	layout := lipgloss.JoinHorizontal(lipgloss.Bottom,
+	return lipgloss.JoinHorizontal(lipgloss.Bottom,
 		pad.Render(help), "  ", boardWithTitle,
-	)
-
-	return lipgloss.Place(m.width, m.height,
-		lipgloss.Center, lipgloss.Center,
-		layout,
 	)
 }
 
@@ -365,8 +402,13 @@ func (m *Model) renderBoard() string {
 	if m.state == stateWon {
 		w := lipgloss.Width(board)
 		h := lipgloss.Height(board)
+		overlay := m.styles.Error.Render(" you win! ")
+		if m.standing != nil {
+			overlay = lipgloss.JoinVertical(lipgloss.Center,
+				overlay, "", m.styles.Muted.Render(m.standing.String()))
+		}
 		board = lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center,
-			m.styles.Error.Render(" you win! "),
+			overlay,
 			lipgloss.WithWhitespaceChars(" "),
 		)
 	}
