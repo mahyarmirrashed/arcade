@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/log"
@@ -46,7 +47,7 @@ func main() {
 	<-done
 	log.Info("shutting down")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*1e9) // 30s
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	if err := s.Shutdown(ctx); err != nil {
@@ -57,5 +58,21 @@ func main() {
 func handler(sess ssh.Session) (tea.Model, []tea.ProgramOption) {
 	pty, _, _ := sess.Pty()
 	var g snake.Model
-	return g.New(pty.Window.Width, pty.Window.Height), []tea.ProgramOption{tea.WithAltScreen()}
+	return standalone{g.New(pty.Window.Width, pty.Window.Height)}, []tea.ProgramOption{tea.WithAltScreen()}
+}
+
+// standalone runs a game outside the arcade. Games leave q and ctrl+c to the
+// arcade's root model, so here they end the session instead.
+type standalone struct{ tea.Model }
+
+// Update implements tea.Model.
+func (s standalone) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if km, ok := msg.(tea.KeyMsg); ok {
+		switch km.String() {
+		case "q", "ctrl+c":
+			return s, tea.Quit
+		}
+	}
+	next, cmd := s.Model.Update(msg)
+	return standalone{next}, cmd
 }
