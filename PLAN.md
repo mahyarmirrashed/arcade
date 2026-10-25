@@ -410,9 +410,13 @@ background (or deployed) would send every player plain text. Each SSH handler
 builds the session's styles once and passes them down:
 
 ```go
-styles := ui.NewStyles(bubbletea.MakeRenderer(sess)) // wish's bubbletea package
-m := root.New(width, height, reg, styles)             // root hands them to the lobby and Game.New
+styles := ui.NewStyles(server.Renderer(sess)) // colour support from the player's TERM
+m := root.New(width, height, reg, styles)      // root hands them to the lobby and Game.New
 ```
+
+`server.Renderer` is used instead of wish's `bubbletea.MakeRenderer` because
+the latter asks the terminal for its background colour; when a terminal doesn't
+answer, the player's first key press is swallowed.
 
 Games keep the `ui.Styles` they are given and render only with it:
 
