@@ -1,5 +1,5 @@
-// Package game2048 implements the 2048 sliding-tile game for the arcade.
-package game2048
+// Package _2048 implements the 2048 sliding-tile game for the arcade.
+package _2048
 
 import "math/rand"
 

@@ -22,7 +22,7 @@ import (
 
 	"github.com/mahyarmirrashed/arcade/internal/config"
 	"github.com/mahyarmirrashed/arcade/internal/game"
-	game2048 "github.com/mahyarmirrashed/arcade/internal/games/2048"
+	_2048 "github.com/mahyarmirrashed/arcade/internal/games/2048"
 	"github.com/mahyarmirrashed/arcade/internal/games/snake"
 	"github.com/mahyarmirrashed/arcade/internal/games/tetris"
 	"github.com/mahyarmirrashed/arcade/internal/root"
@@ -38,7 +38,7 @@ func main() {
 	reg := game.NewRegistry(
 		&tetris.Model{},
 		&snake.Model{},
-		&game2048.Model{},
+		&_2048.Model{},
 	)
 
 	opts := []ssh.Option{

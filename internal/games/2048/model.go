@@ -1,4 +1,4 @@
-package game2048
+package _2048
 
 import (
 	"math/rand"
