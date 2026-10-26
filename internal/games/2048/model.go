@@ -107,6 +107,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.state != statePlaying {
 			s := sm.Standing
 			m.standing = &s
+			// Seed the all-time best so it persists across restarts.
+			if s.Best > m.best {
+				m.best = s.Best
+			}
 		}
 		return m, nil
 	}

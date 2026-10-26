@@ -168,13 +168,13 @@ func TestRecord_byScore(t *testing.T) {
 	alice := named(t, b, "a", "alice")
 	bob := named(t, b, "b", "bob")
 
-	if st := mustRecord(t, alice, "snake", game.ByScore, game.Result{Score: 10}); st != (game.Standing{Ranked: true, NewBest: true, Rank: 1, Of: 1}) {
+	if st := mustRecord(t, alice, "snake", game.ByScore, game.Result{Score: 10}); st != (game.Standing{Ranked: true, NewBest: true, Rank: 1, Of: 1, Best: 10}) {
 		t.Errorf("first result: %+v; want new best, #1 of 1", st)
 	}
-	if st := mustRecord(t, bob, "snake", game.ByScore, game.Result{Score: 30}); st != (game.Standing{Ranked: true, NewBest: true, Rank: 1, Of: 2}) {
+	if st := mustRecord(t, bob, "snake", game.ByScore, game.Result{Score: 30}); st != (game.Standing{Ranked: true, NewBest: true, Rank: 1, Of: 2, Best: 30}) {
 		t.Errorf("bob beats alice: %+v; want new best, #1 of 2", st)
 	}
-	if st := mustRecord(t, alice, "snake", game.ByScore, game.Result{Score: 5}); st != (game.Standing{Ranked: true, Rank: 2, Of: 2}) {
+	if st := mustRecord(t, alice, "snake", game.ByScore, game.Result{Score: 5}); st != (game.Standing{Ranked: true, Rank: 2, Of: 2, Best: 10}) {
 		t.Errorf("alice scores lower: %+v; want no new best, #2 of 2", st)
 	}
 	if st := mustRecord(t, alice, "snake", game.ByScore, game.Result{Score: 30}); !st.NewBest || st.Rank != 2 {

@@ -60,6 +60,7 @@ type Standing struct {
 	NewBest bool // the result beat the player's previous best
 	Rank    int  // the player's position, from 1; 0 if they don't qualify yet
 	Of      int  // how many players qualify
+	Best    int  // the player's all-time best score (ByScore games only)
 }
 
 // StandingMsg tells a game where its result placed.

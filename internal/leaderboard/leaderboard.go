@@ -214,7 +214,7 @@ func (s Session) Record(gameID string, r game.Ranking, res game.Result) (game.St
 	recs[s.id] = rec
 
 	rank, of := b.rank(gameID, r, s.id)
-	return game.Standing{Ranked: true, NewBest: newBest, Rank: rank, Of: of}, b.save()
+	return game.Standing{Ranked: true, NewBest: newBest, Rank: rank, Of: of, Best: rec.Best}, b.save()
 }
 
 // apply folds a result into rec and reports whether it set a new best.

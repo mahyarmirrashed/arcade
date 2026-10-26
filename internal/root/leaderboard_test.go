@@ -135,7 +135,7 @@ func TestRoot_recordsResultsAndTellsTheGame(t *testing.T) {
 
 	_, cmd := m.Update(game.ResultMsg{Game: "stub", Ranking: game.ByScore, Result: game.Result{Score: 5}})
 
-	want := game.StandingMsg{Standing: game.Standing{Ranked: true, NewBest: true, Rank: 1, Of: 1}}
+	want := game.StandingMsg{Standing: game.Standing{Ranked: true, NewBest: true, Rank: 1, Of: 1, Best: 5}}
 	if cmd == nil || cmd() != want {
 		t.Errorf("cmd() = %v; want %#v", cmd, want)
 	}
