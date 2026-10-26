@@ -33,25 +33,27 @@ const (
 )
 
 type keyMap struct {
-	left   key.Binding
-	right  key.Binding
-	up     key.Binding
-	down   key.Binding
-	pick   key.Binding // select / place
-	auto   key.Binding // auto-move to foundation
-	draw   key.Binding // draw from stock
-	quit   key.Binding
+	left    key.Binding
+	right   key.Binding
+	up      key.Binding
+	down    key.Binding
+	pick    key.Binding // select / place
+	auto    key.Binding // auto-move to foundation
+	autoWin key.Binding // auto-complete when all face-up
+	draw    key.Binding // draw from stock
+	quit    key.Binding
 }
 
 var keys = keyMap{
-	left:  key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "left")),
-	right: key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "right")),
-	up:    key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑/k", "up")),
-	down:  key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "down")),
-	pick:  key.NewBinding(key.WithKeys("enter", " "), key.WithHelp("enter", "pick/place")),
-	auto:  key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "auto")),
-	draw:  key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "draw")),
-	quit:  key.NewBinding(key.WithKeys("esc", "ctrl+c"), key.WithHelp("esc", "quit")),
+	left:    key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "left")),
+	right:   key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "right")),
+	up:      key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑/k", "up")),
+	down:    key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "down")),
+	pick:    key.NewBinding(key.WithKeys("enter", " "), key.WithHelp("enter", "pick/place")),
+	auto:    key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "auto-foundation")),
+	autoWin: key.NewBinding(key.WithKeys("w"), key.WithHelp("w", "auto-win")),
+	draw:    key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "draw")),
+	quit:    key.NewBinding(key.WithKeys("esc", "ctrl+c"), key.WithHelp("esc", "quit")),
 }
 
 // selection holds a grabbed sequence of cards and where they came from.
@@ -157,7 +159,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 	case tea.KeyMsg:
-		// Ignore keys while the player can't see the board.
 		if !m.fits() {
 			return m, nil
 		}
@@ -174,7 +175,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 type restartMsg struct{ m *Model }
 
 func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
-	if msg.String() == "r" && m.state == stateWon {
+	if msg.String() == "r" {
 		fresh := newModel(m.width, m.height, m.styles)
 		fresh.now = m.now
 		return func() tea.Msg { return restartMsg{fresh} }
@@ -184,7 +185,7 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 		return nil
 	}
 	if m.started.IsZero() {
-		m.started = m.now() // the clock starts with the first move
+		m.started = m.now()
 	}
 
 	switch {
@@ -192,18 +193,24 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 		if m.cursor > 0 {
 			m.cursor--
 		}
+		m.sel = nil
 	case key.Matches(msg, keys.right):
 		if m.cursor < cursorMax {
 			m.cursor++
 		}
+		m.sel = nil
 	case key.Matches(msg, keys.up):
 		m.moveCursorUp()
+		m.sel = nil
 	case key.Matches(msg, keys.down):
 		m.moveCursorDown()
+		m.sel = nil
 	case key.Matches(msg, keys.pick):
 		m.pick()
 	case key.Matches(msg, keys.auto):
-		m.autoMove()
+		m.autoMoveAll()
+	case key.Matches(msg, keys.autoWin):
+		m.autoWin()
 	case key.Matches(msg, keys.draw):
 		m.draw()
 	}
@@ -213,10 +220,9 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 	return nil
 }
 
-// moveCursorUp moves the cursor from tableau row to the top row (foundations/stock/waste).
+// moveCursorUp moves the cursor from tableau row to the top row.
 func (m *Model) moveCursorUp() {
 	if m.cursor <= cursorTableauEnd {
-		// Move to the foundation/stock row above.
 		if m.cursor < 4 {
 			m.cursor = cursorFoundationStart + m.cursor
 		} else if m.cursor == 4 {
@@ -241,16 +247,7 @@ func (m *Model) moveCursorDown() {
 
 // currentPile returns a pointer to the pile at the current cursor position.
 func (m *Model) currentPile() *pile {
-	switch {
-	case m.cursor <= cursorTableauEnd:
-		return &m.tableau[m.cursor]
-	case m.cursor <= cursorFoundationEnd:
-		return &m.foundations[m.cursor-cursorFoundationStart]
-	case m.cursor == cursorStock:
-		return &m.stock
-	default:
-		return &m.waste
-	}
+	return m.pileAt(m.cursor)
 }
 
 // pick handles the select/place action at the current cursor.
@@ -258,7 +255,7 @@ func (m *Model) pick() {
 	p := m.currentPile()
 
 	if m.sel == nil {
-		// Nothing selected yet - try to select something.
+		// Nothing selected - try to select.
 		if m.cursor == cursorStock {
 			m.draw()
 			return
@@ -270,8 +267,9 @@ func (m *Model) pick() {
 		if !top.FaceUp {
 			return
 		}
-		// For waste/foundation, only the top card can be selected.
-		// For tableau, select the topmost face-up run.
+
+		// For tableau, select the deepest face-up card (the whole run).
+		// For waste/foundation, select just the top card.
 		fromIdx := len(p.cards) - 1
 		if m.cursor <= cursorTableauEnd {
 			for fromIdx > 0 && p.cards[fromIdx-1].FaceUp {
@@ -282,21 +280,38 @@ func (m *Model) pick() {
 		return
 	}
 
-	// Something is selected - try to place it.
+	// Already have a selection.
+
+	// If picking the same pile again: cycle the selection up one card (select
+	// a smaller sub-stack). If we're already at the top card, deselect.
+	if m.cursor == m.sel.fromCursor && m.cursor <= cursorTableauEnd {
+		src := m.pileAt(m.sel.fromCursor)
+		if m.sel.fromIdx < len(src.cards)-1 {
+			m.sel.fromIdx++
+		} else {
+			m.sel = nil // deselect
+		}
+		return
+	}
+
+	// Try to place the selected cards at the cursor.
 	src := m.pileAt(m.sel.fromCursor)
 	cards := src.cards[m.sel.fromIdx:]
 
 	placed := false
+
 	switch {
 	case m.cursor <= cursorTableauEnd:
+		// Place a sequence onto tableau.
 		if canPlaceSequence(p, src.cards, m.sel.fromIdx) {
 			p.cards = append(p.cards, cards...)
 			src.cards = src.cards[:m.sel.fromIdx]
 			m.flipTop(src)
 			placed = true
 		}
-	case m.cursor <= cursorFoundationEnd && len(cards) == 1:
-		if canPlaceOnFoundation(p, cards[0]) {
+	case m.cursor <= cursorFoundationEnd:
+		// Place a single card onto foundation.
+		if len(cards) == 1 && canPlaceOnFoundation(p, cards[0]) {
 			p.cards = append(p.cards, cards[0])
 			src.cards = src.cards[:m.sel.fromIdx]
 			m.flipTop(src)
@@ -310,21 +325,79 @@ func (m *Model) pick() {
 	}
 }
 
-// autoMove tries to move the top card at the cursor to a foundation.
-func (m *Model) autoMove() {
-	p := m.currentPile()
-	if i := autoFoundation(p, &m.foundations); i >= 0 {
-		m.flipTop(p)
-		if isComplete(m.foundations) {
-			m.state = stateWon
+// autoMoveAll sweeps all tableau tops and waste top to foundations in a loop
+// until nothing more can be moved.
+func (m *Model) autoMoveAll() {
+	for {
+		moved := false
+		// Try waste first.
+		if autoFoundation(&m.waste, &m.foundations) >= 0 {
+			moved = true
+		}
+		// Try each tableau column.
+		for i := 0; i < 7; i++ {
+			if autoFoundation(&m.tableau[i], &m.foundations) >= 0 {
+				m.flipTop(&m.tableau[i])
+				moved = true
+			}
+		}
+		if !moved {
+			break
 		}
 	}
+	if isComplete(m.foundations) {
+		m.state = stateWon
+	}
+}
+
+// autoWin checks whether all remaining cards are face-up (no hidden cards,
+// stock and waste may still have cards). If so, it moves everything to
+// foundations automatically.
+func (m *Model) autoWin() {
+	if !m.allFaceUp() {
+		return
+	}
+	// Repeatedly move the lowest-rank available card to its foundation.
+	for !isComplete(m.foundations) {
+		moved := false
+		if autoFoundation(&m.waste, &m.foundations) >= 0 {
+			moved = true
+			continue
+		}
+		for i := 0; i < 7; i++ {
+			if autoFoundation(&m.tableau[i], &m.foundations) >= 0 {
+				moved = true
+				break
+			}
+		}
+		if !moved {
+			break // shouldn't happen if allFaceUp is correct, but safety
+		}
+	}
+	if isComplete(m.foundations) {
+		m.state = stateWon
+	}
+}
+
+// allFaceUp reports whether every card not yet on a foundation is face-up.
+func (m *Model) allFaceUp() bool {
+	if len(m.stock.cards) > 0 {
+		return false
+	}
+	for i := 0; i < 7; i++ {
+		for _, c := range m.tableau[i].cards {
+			if !c.FaceUp {
+				return false
+			}
+		}
+	}
+	// Waste cards are always face-up by definition.
+	return true
 }
 
 // draw turns one card from stock to waste. If stock is empty, recycles waste.
 func (m *Model) draw() {
 	if len(m.stock.cards) == 0 {
-		// Recycle waste back to stock face-down.
 		for i := len(m.waste.cards) - 1; i >= 0; i-- {
 			c := m.waste.cards[i]
 			c.FaceUp = false
@@ -373,13 +446,11 @@ func (m *Model) View() string {
 	)
 }
 
-// fits reports whether the whole layout fits in the terminal.
 func (m *Model) fits() bool {
 	w, h := lipgloss.Size(m.layout())
 	return w <= m.width && h <= m.height
 }
 
-// layout renders the help beside the titled board.
 func (m *Model) layout() string {
 	help := m.renderHelp()
 	board := m.renderBoard()
@@ -416,7 +487,6 @@ func (m *Model) renderBoard() string {
 	return m.styles.Border.Render(board)
 }
 
-// indicator returns a 1-line bright reversed "▼" indicator if active, else blank.
 func (m *Model) indicator(active bool) string {
 	if active {
 		return m.styles.NewStyle().
@@ -429,8 +499,6 @@ func (m *Model) indicator(active bool) string {
 	return strings.Repeat(" ", cardW)
 }
 
-// renderTopRow renders: foundations (4) + gap + stock + waste.
-// Each card is preceded by a 1-line indicator to align with tableau columns.
 func (m *Model) renderTopRow() string {
 	parts := make([]string, 0, 10)
 
@@ -451,9 +519,8 @@ func (m *Model) renderTopRow() string {
 		}
 	}
 
-	parts = append(parts, "   ") // gap between foundations and stock
+	parts = append(parts, "   ")
 
-	// Stock
 	stockCursor := m.cursor == cursorStock
 	var stockCard string
 	if len(m.stock.cards) == 0 {
@@ -463,7 +530,6 @@ func (m *Model) renderTopRow() string {
 	}
 	parts = append(parts, lipgloss.JoinVertical(lipgloss.Left, m.indicator(stockCursor), stockCard), " ")
 
-	// Waste
 	wasteCursor := m.cursor == cursorWaste
 	wasteSel := m.sel != nil && m.sel.fromCursor == cursorWaste
 	var wasteCard string
@@ -477,7 +543,6 @@ func (m *Model) renderTopRow() string {
 	return lipgloss.JoinHorizontal(lipgloss.Top, parts...)
 }
 
-// renderTableau renders all 7 tableau columns side by side.
 func (m *Model) renderTableau() string {
 	cols := make([]string, 7)
 	for i := 0; i < 7; i++ {
@@ -486,26 +551,19 @@ func (m *Model) renderTableau() string {
 	return lipgloss.JoinHorizontal(lipgloss.Top, interleave(cols, " ")...)
 }
 
-// renderTableauCol renders a single tableau column as a vertical stack of cards.
-// Face-down cards overlap: only the very first gets a top border; subsequent
-// face-down cards show no top border, avoiding a wall of repeated ┌────┐ lines.
-// Face-up cards show their top 2 lines (border + rank/suit row).
-// The cursor column gets a bright "> col N <" header above it.
 func (m *Model) renderTableauCol(col int) string {
 	p := &m.tableau[col]
 	cursor := m.cursor == col
 	selFrom := m.sel != nil && m.sel.fromCursor == col
 
-	// Cursor indicator: a bright reversed label above the column.
-	indicator := strings.Repeat(" ", cardW) // blank spacer when not cursor
+	indicator := strings.Repeat(" ", cardW)
 	if cursor {
-		label := m.styles.NewStyle().
+		indicator = m.styles.NewStyle().
 			Width(cardW).
 			Align(lipgloss.Center).
 			Reverse(true).
 			Bold(true).
 			Render("▼")
-		indicator = label
 	}
 
 	if len(p.cards) == 0 {
@@ -513,10 +571,6 @@ func (m *Model) renderTableauCol(col int) string {
 		return lipgloss.JoinVertical(lipgloss.Left, indicator, e)
 	}
 
-	// Build lines by overlapping cards.
-	// - face-down non-last: show only the top border line (┌────┐).
-	// - face-up non-last: show top 2 lines (border + rank/suit row).
-	// - last card: show all 4 lines.
 	var lines []string
 	for i, c := range p.cards {
 		isLast := i == len(p.cards)-1
@@ -526,18 +580,15 @@ func (m *Model) renderTableauCol(col int) string {
 
 		if isLast {
 			lines = append(lines, cardLines...)
-		} else if c.FaceUp {
-			lines = append(lines, cardLines[0])
 		} else {
 			lines = append(lines, cardLines[0])
 		}
 	}
 
-	col_content := strings.Join(lines, "\n")
-	return lipgloss.JoinVertical(lipgloss.Left, indicator, col_content)
+	colContent := strings.Join(lines, "\n")
+	return lipgloss.JoinVertical(lipgloss.Left, indicator, colContent)
 }
 
-// interleave inserts sep between each element.
 func interleave(parts []string, sep string) []string {
 	out := make([]string, 0, len(parts)*2-1)
 	for i, p := range parts {
@@ -551,7 +602,7 @@ func interleave(parts []string, sep string) []string {
 
 func (m *Model) renderHelp() string {
 	line := func(s string) string { return m.styles.Muted.Render(s) }
-	return lipgloss.JoinVertical(lipgloss.Left,
+	lines := []string{
 		line("←→   move"),
 		line("↑↓   top/tableau"),
 		line("enter  pick/place"),
@@ -559,5 +610,9 @@ func (m *Model) renderHelp() string {
 		line("d    draw"),
 		line("r    restart"),
 		line("esc  quit"),
-	)
+	}
+	if m.allFaceUp() && m.state == statePlaying {
+		lines = append(lines, "", line("w    auto-win!"))
+	}
+	return lipgloss.JoinVertical(lipgloss.Left, lines...)
 }
