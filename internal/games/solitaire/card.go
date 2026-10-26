@@ -78,7 +78,7 @@ type Card struct {
 // color returns the lipgloss color for this card's suit.
 func (c Card) color() lipgloss.Color {
 	if c.Suit.isRed() {
-		return ui.Spectrum[0] // red
+		return lipgloss.Color("9") // bright red - better contrast on dark bg
 	}
 	return ui.ColorText // white/bright
 }
