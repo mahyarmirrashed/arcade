@@ -339,7 +339,7 @@ func TestGameState_dealHands(t *testing.T) {
 	gs := newGameState(rng)
 
 	initialDeckLen := len(gs.Deck)
-	gs.dealHands(rng)
+	gs.dealHands()
 	if len(gs.Hands[0]) != 2*handSize {
 		t.Errorf("hand0 after deal = %d; want %d", len(gs.Hands[0]), 2*handSize)
 	}

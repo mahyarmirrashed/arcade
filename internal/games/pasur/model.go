@@ -92,7 +92,7 @@ func newModel(width, height int, styles ui.Styles) *Model {
 	room := Broker.Create()
 
 	ji := textinput.New()
-	ji.Placeholder = "XKCD"
+	ji.Placeholder = "A2BF" // example room code format
 	ji.CharLimit = 4
 	ji.Width = 6
 
@@ -165,7 +165,7 @@ func (m *Model) syncState() {
 
 // waitForUpdate returns a tea.Cmd that blocks until the room broadcasts.
 func (m *Model) waitForUpdate() tea.Cmd {
-	ch := m.room.channels[m.seat]
+	ch := Broker.Channel(m.code, m.seat)
 	if ch == nil {
 		return nil
 	}
@@ -175,6 +175,8 @@ func (m *Model) waitForUpdate() tea.Cmd {
 }
 
 func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
+	m.notice = ""
+
 	if msg.String() == "r" && m.state == stateOver {
 		fresh := newModel(m.width, m.height, m.styles)
 		return func() tea.Msg { return replaceMsg{fresh} }
@@ -357,8 +359,10 @@ func (m *Model) viewGame() string {
 	if m.state == stateGrace {
 		w := lipgloss.Width(layout)
 		h := lipgloss.Height(layout)
-		overlay := m.styles.Error.Render(" opponent disconnected ") + "\n" +
-			m.styles.Muted.Render("waiting "+s.graceEnds+"...")
+		overlay := lipgloss.JoinVertical(lipgloss.Center,
+			m.styles.Error.Render(" opponent disconnected "),
+			m.styles.Muted.Render("waiting "+s.graceEnds+"..."),
+		)
 		layout = lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center,
 			overlay, lipgloss.WithWhitespaceChars(" "))
 	}
@@ -392,7 +396,6 @@ func (m *Model) renderBoard() string {
 	notice := ""
 	if m.notice != "" {
 		notice = m.styles.Error.Render(" " + m.notice + " ")
-		m.notice = ""
 	}
 
 	inner := lipgloss.JoinVertical(lipgloss.Left,

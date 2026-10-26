@@ -136,8 +136,9 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 		}
 	default:
 		// Accept a-z only.
-		if len(msg.String()) == 1 {
-			ch := rune(msg.String()[0])
+		runes := []rune(msg.String())
+		if len(runes) == 1 {
+			ch := runes[0]
 			if ch >= 'a' && ch <= 'z' && len(m.input) < wordLen {
 				m.input += string(ch)
 			}
@@ -307,12 +308,16 @@ func (m *Model) renderBoard() string {
 		)
 	}
 
-	notice := ""
+	bordered := m.styles.Border.Render(inner)
+
 	if m.notice != "" {
-		notice = "\n" + m.styles.Muted.Render(m.notice)
+		return lipgloss.JoinVertical(lipgloss.Left,
+			bordered,
+			m.styles.Muted.Render(m.notice),
+		)
 	}
 
-	return m.styles.Border.Render(inner) + notice
+	return bordered
 }
 
 func (m *Model) renderHelp() string {

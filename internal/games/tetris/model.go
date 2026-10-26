@@ -29,13 +29,6 @@ func tickCmd(m *Model) tea.Cmd {
 	return tea.Tick(delay, func(time.Time) tea.Msg { return tickMsg{owner: m} })
 }
 
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
 // keys defines all Tetris keybindings.
 type keyMap struct {
 	left      key.Binding

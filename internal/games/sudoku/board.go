@@ -102,7 +102,7 @@ func generate(rng *rand.Rand) grid {
 }
 
 // newPuzzle generates a puzzle by removing clues from a solved grid.
-// cluesTarget controls difficulty: ~35 clues = hard, ~45 = medium, ~55 = easy.
+// cluesTarget controls difficulty: ~35 clues = medium, ~45 = easy, ~55 = very easy.
 func newPuzzle(rng *rand.Rand, cluesTarget int) (puzzle grid, solution grid) {
 	solution = generate(rng)
 	puzzle = solution

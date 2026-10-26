@@ -106,8 +106,7 @@ func newGameState(rng *rand.Rand) GameState {
 
 // dealHands deals 4 more cards to each player from the deck.
 // Returns false if the deck is exhausted.
-func (gs *GameState) dealHands(rng *rand.Rand) bool {
-	_ = rng // rng not needed; deck is already shuffled
+func (gs *GameState) dealHands() bool {
 	if len(gs.Deck) < 2*handSize {
 		return false
 	}
@@ -160,7 +159,7 @@ func (gs *GameState) playCard(handIdx int, captureIdxs []int, rng *rand.Rand) (s
 
 	// Deal new hands when both are empty.
 	if len(gs.Hands[0]) == 0 && len(gs.Hands[1]) == 0 {
-		gs.dealHands(rng)
+		gs.dealHands()
 	}
 
 	return sur
@@ -384,6 +383,19 @@ func (b *broker) broadcast(r *Room) {
 // cleanup removes a room from the map. Must be called with b.mu held.
 func (b *broker) cleanup(code string) {
 	delete(b.rooms, code)
+}
+
+// Channel returns the channel for seat in the given room, or nil if the room
+// or channel does not exist. The read is performed under b.mu so it is safe
+// for concurrent callers.
+func (b *broker) Channel(code string, seat playerIndex) chan stateMsg {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	r, ok := b.rooms[code]
+	if !ok {
+		return nil
+	}
+	return r.channels[seat]
 }
 
 // uniqueCode generates a random 4-character uppercase code not already in use.

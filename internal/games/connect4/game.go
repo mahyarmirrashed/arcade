@@ -220,8 +220,21 @@ func (b *broker) cleanup(code string) {
 	delete(b.rooms, code)
 }
 
+// Channel returns the channel for seat in the given room, or nil if the room
+// or channel does not exist. The read is performed under b.mu so it is safe
+// for concurrent callers.
+func (b *broker) Channel(code string, seat playerIndex) chan stateMsg {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	r, ok := b.rooms[code]
+	if !ok {
+		return nil
+	}
+	return r.channels[seat]
+}
+
 func (b *broker) uniqueCode() string {
-	const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+	const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789" // no O/0/I/1 to avoid confusion
 	for {
 		code := make([]byte, 4)
 		for i := range code {

@@ -288,9 +288,9 @@ func (m *Model) renderSide() string {
 func (m *Model) renderHelp() string {
 	line := func(s string) string { return m.styles.Muted.Render(s) }
 	return lipgloss.JoinVertical(lipgloss.Left,
-		line("↑↓←→  move"),
-		line("enter  reveal"),
-		line("f      flag"),
+		line("↑↓←→     move"),
+		line("enter/spc  reveal"),
+		line("f          flag"),
 		line("r      restart"),
 		line("esc    quit"),
 	)

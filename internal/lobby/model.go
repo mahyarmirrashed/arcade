@@ -229,7 +229,7 @@ const leaderboardW = 26
 // leaderboard it shows the top scores; for everything else it shows a blank
 // placeholder of the same width so the layout does not shift.
 func (m Model) leaderboard() string {
-	fixed := lipgloss.NewStyle().Width(leaderboardW)
+	fixed := m.styles.NewStyle().Width(leaderboardW)
 
 	g, ok := m.selectedGame().(game.Ranked)
 	if !ok || !m.lb.Enabled() {
@@ -262,7 +262,10 @@ func (m Model) standing(id string, r game.Ranking) string {
 	case m.lb.NeedsName():
 		return m.styles.Muted.Render("reconnect to pick a name")
 	case m.lb.Name() == "":
-		return m.styles.Muted.Render("connect with an ssh key\nto be ranked")
+		return lipgloss.JoinVertical(lipgloss.Left,
+			m.styles.Muted.Render("connect with an ssh key"),
+			m.styles.Muted.Render("to be ranked"),
+		)
 	}
 	rank, of := m.lb.Rank(id, r)
 	if rank == 0 {

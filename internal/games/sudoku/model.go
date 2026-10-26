@@ -113,7 +113,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 type restartMsg struct{ m *Model }
 
 func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
-	if msg.String() == "r" {
+	if msg.String() == "r" && m.state != statePlaying {
 		fresh := newModel(m.width, m.height, m.styles)
 		fresh.now = m.now
 		return func() tea.Msg { return restartMsg{fresh} }
@@ -203,6 +203,10 @@ func (m *Model) View() string {
 	layout := lipgloss.JoinHorizontal(lipgloss.Bottom,
 		pad.Render(help), "  ", boardWithTitle,
 	)
+
+	if w, h := lipgloss.Size(layout); w > m.width || h > m.height {
+		return m.styles.TooSmall(m.width, m.height, w, h)
+	}
 
 	return lipgloss.Place(m.width, m.height,
 		lipgloss.Center, lipgloss.Center,

@@ -22,7 +22,6 @@ var (
 	ColorInverse = lipgloss.Color("0")   // black - used for selected item bg
 )
 
-
 // Spectrum is a rainbow of bright colours for game pieces, matching the Tetris
 // piece colours: red, orange, yellow, green, cyan, blue, purple.
 var Spectrum = []lipgloss.Color{

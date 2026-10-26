@@ -79,7 +79,7 @@ func (m *Model) New(width, height int, styles ui.Styles) tea.Model {
 func newModel(width, height int, styles ui.Styles) *Model {
 	room := Broker.Create()
 	ji := textinput.New()
-	ji.Placeholder = "XKCD"
+	ji.Placeholder = "A2BF" // example room code format
 	ji.CharLimit = 4
 	ji.Width = 6
 	return &Model{
@@ -143,7 +143,7 @@ func (m *Model) syncState() {
 }
 
 func (m *Model) waitForUpdate() tea.Cmd {
-	ch := m.room.channels[m.seat]
+	ch := Broker.Channel(m.code, m.seat)
 	if ch == nil {
 		return nil
 	}
@@ -151,6 +151,8 @@ func (m *Model) waitForUpdate() tea.Cmd {
 }
 
 func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
+	m.notice = ""
+
 	if msg.String() == "r" && m.state == stateOver {
 		fresh := newModel(m.width, m.height, m.styles)
 		return func() tea.Msg { return replaceMsg{fresh} }
@@ -271,7 +273,6 @@ func (m *Model) viewJoining() string {
 	notice := ""
 	if m.notice != "" {
 		notice = m.styles.Error.Render(" " + m.notice + " ")
-		m.notice = ""
 	}
 	return lipgloss.JoinVertical(lipgloss.Left,
 		m.styles.Title.Render("connect 4"),
@@ -385,8 +386,10 @@ func (m *Model) renderBoard() string {
 	if s.phase == phaseGrace {
 		w := lipgloss.Width(inner)
 		h := lipgloss.Height(inner)
-		overlay := m.styles.Error.Render(" opponent disconnected ") + "\n" +
-			m.styles.Muted.Render("waiting "+s.graceEnds+"...")
+		overlay := lipgloss.JoinVertical(lipgloss.Center,
+			m.styles.Error.Render(" opponent disconnected "),
+			m.styles.Muted.Render("waiting "+s.graceEnds+"..."),
+		)
 		inner = lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center,
 			overlay, lipgloss.WithWhitespaceChars(" "))
 	}

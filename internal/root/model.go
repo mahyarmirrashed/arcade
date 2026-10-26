@@ -193,7 +193,8 @@ func (m Model) record(res game.ResultMsg) tea.Cmd {
 
 func (m Model) updateName(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if km, ok := msg.(tea.KeyMsg); ok {
-		// Every other key, q included, is typing.
+		// Use km.Type here (not km.String) so that regular letter keys fall
+		// through to the textinput without being caught by a string switch.
 		switch km.Type {
 		case tea.KeyCtrlC:
 			return m, tea.Quit

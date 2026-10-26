@@ -134,17 +134,34 @@ All stages are done. For historical context:
 - **Stage 4B**: Persistent leaderboards — SSH key identity, display name prompt, per-game ranking rules, atomic JSON storage
 - **Stage 5 (games)**: 2048, Minesweeper, Solitaire (Klondike), Sudoku, Wordle added
 
-## Current games
+## Status
 
-| Game        | Ranked by                              |
-| ----------- | -------------------------------------- |
-| 2048        | best score                             |
-| Minesweeper | fastest win                            |
-| Snake       | best score (fixed 28×20 board)         |
-| Solitaire   | fastest win                            |
-| Sudoku      | fastest solve                          |
-| Tetris      | best score                             |
+### Single-player games — complete
+
+All seven single-player games are implemented, tested, and considered
+production-ready. The codebase has been audited for races, style violations,
+and consistency issues; all known issues have been resolved.
+
+| Game        | Ranked by                               |
+| ----------- | --------------------------------------- |
+| 2048        | best score                              |
+| Minesweeper | fastest win                             |
+| Snake       | best score (fixed 28×20 board)          |
+| Solitaire   | fastest win                             |
+| Sudoku      | fastest solve                           |
+| Tetris      | best score                              |
 | Wordle      | longest win streak, then fewest guesses |
+
+### Multiplayer games — in progress
+
+The room-broker infrastructure is complete and proven by Connect 4 and Pasur.
+The following games still need to be implemented:
+
+| Game     | Notes                                                         |
+| -------- | ------------------------------------------------------------- |
+| Pasur    | Persian fishing card game — broker done, gameplay done, needs polish |
+| Go Fish  | Standard Go Fish card game, 2 players, same broker pattern    |
+| Hearts   | 4-player trick-taking card game; may need a 4-seat broker variant |
 
 ## Backlog
 
@@ -165,18 +182,18 @@ they share a single `Room` that holds the authoritative game state.
 
 ```
 Player A selects game
-    → broker.Create() → Room{code: "XKCD", state: waiting}
-    → A's model shows "your code: XKCD, waiting for opponent..."
+    → broker.Create() → Room{code: "A2BF", state: waiting}
+    → A's model shows "your code: A2BF, waiting for opponent..."
 
-Player B selects game → sees join prompt → types "XKCD"
-    → broker.Join("XKCD") → room transitions to playing
+Player B selects game → sees join prompt → types "A2BF"
+    → broker.Join("A2BF") → room transitions to playing
     → broker broadcasts stateMsg to both A and B's channels
     → both programs re-render simultaneously
 ```
 
 ### Room codes
 
-4-character uppercase alphanumeric codes (e.g. `XKCD`). Generated
+4-character uppercase alphanumeric codes (e.g. `A2BF`). Generated
 randomly at room creation. Stored in the broker's map for the lifetime
 of the room.
 
