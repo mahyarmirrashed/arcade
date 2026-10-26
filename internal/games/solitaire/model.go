@@ -193,18 +193,14 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 		if m.cursor > 0 {
 			m.cursor--
 		}
-		m.sel = nil
 	case key.Matches(msg, keys.right):
 		if m.cursor < cursorMax {
 			m.cursor++
 		}
-		m.sel = nil
 	case key.Matches(msg, keys.up):
 		m.moveCursorUp()
-		m.sel = nil
 	case key.Matches(msg, keys.down):
 		m.moveCursorDown()
-		m.sel = nil
 	case key.Matches(msg, keys.pick):
 		m.pick()
 	case key.Matches(msg, keys.auto):
